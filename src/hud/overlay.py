@@ -160,13 +160,19 @@ class F1HudOverlay:
     def _update_corner_logic(self):
         """Atualiza a máquina de estados (compatibilidade e testes)."""
         # Trava de Volta de Lançamento / Aquecimento (Out-Lap / Grid / Garagem)
+        circuit_len = float(self.state.circuit.length) if (self.state.circuit and self.state.circuit.length) else 4300.0
         if (
             self.state.lap_distance < 0.0
             or self.state.driver_status in (0, 3)
-            or (self.state.lap_time_ms == 0 and self.state.lap_distance < 100.0)
+            or (self.state.lap_time_ms == 0 and (self.state.lap_distance > (circuit_len - 1600.0) or self.state.lap_distance < 15.0))
         ):
             c0 = self.state.circuit.corners[0] if (self.state.circuit and self.state.circuit.corners) else None
-            d = abs(self.state.lap_distance) if self.state.lap_distance < 0.0 else max(0.0, 0.0 - self.state.lap_distance)
+            if self.state.lap_distance < 0.0:
+                d = abs(self.state.lap_distance)
+            elif self.state.lap_distance > 500.0:
+                d = max(0.0, circuit_len - self.state.lap_distance)
+            else:
+                d = max(0.0, -self.state.lap_distance)
             self.state.current_state = "lancamento"
             self.state.next_corner = c0
             self.state.dist_to_brake = d

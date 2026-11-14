@@ -15,22 +15,18 @@ UDP_IP = "127.0.0.1"
 UDP_PORT = 20777
 
 
-def send_simulated_lap(ip: str = "127.0.0.1", port: int = 20777, delay: float = 0.005):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    print(f"🚀 Iniciando emissor simulado de telemetria para {ip}:{port}...")
-
+def generate_simulated_lap_packets() -> list[bytes]:
+    """Gera sequência determinística de pacotes de telemetria de uma volta em Monza."""
+    packets = []
     # 1. Envia Pacote de Sessão (Monza, ID 11)
     session_header = struct.pack(HEADER_FORMAT_29, 2024, 24, 1, 0, 1, 1, 999999, 10.0, 1, 1, 0, 255)
     session_body = struct.pack(SESSION_DATA_FORMAT, 0, 32, 24, 20, 5793, 13, 11)
-    sock.sendto(session_header + session_body, (ip, port))
-    time.sleep(0.02)
+    packets.append(session_header + session_body)
 
     total_distance = 5793.0
     current_dist = 0.0
     step_m = 30.0
     lap_time_ms = 0
-
-    print("Simulando volta em Monza...")
     lap_num = 1
     session_time = 10.0
 
@@ -39,7 +35,6 @@ def send_simulated_lap(ip: str = "127.0.0.1", port: int = 20777, delay: float = 
         lap_time_ms += 50
         current_dist += step_m
 
-        # Lógica simplificada de velocidade e pedais em Monza
         speed = 330
         throttle = 1.0
         brake = 0.0
@@ -86,7 +81,7 @@ def send_simulated_lap(ip: str = "127.0.0.1", port: int = 20777, delay: float = 
             0, 0, 0,
             340.0, 1
         )
-        sock.sendto(lap_header + (lap_entry * 22) + b"\xff\xff", (ip, port))
+        packets.append(lap_header + (lap_entry * 22) + b"\xff\xff")
 
         # Pacote CarTelemetry (ID 6)
         tel_header = struct.pack(HEADER_FORMAT_29, 2024, 24, 1, 0, 1, 6, 999999, session_time, 10, 10, 0, 255)
@@ -96,9 +91,7 @@ def send_simulated_lap(ip: str = "127.0.0.1", port: int = 20777, delay: float = 
             400, 400, 420, 420, 95, 95, 90, 90, 100, 100, 95, 95,
             105, 23.5, 23.5, 24.0, 24.0, 0, 0, 0, 0
         )
-        sock.sendto(tel_header + (tel_entry * 22) + b"\x00\x00\x00", (ip, port))
-
-        time.sleep(delay)
+        packets.append(tel_header + (tel_entry * 22) + b"\x00\x00\x00")
 
     # Conclusão da volta (incrementa lap_num para 2 para disparar o salvamento)
     lap_num = 2
@@ -119,7 +112,18 @@ def send_simulated_lap(ip: str = "127.0.0.1", port: int = 20777, delay: float = 
         0, 0, 0,
         340.0, 1
     )
-    sock.sendto(lap_header + (lap_entry * 22) + b"\xff\xff", (ip, port))
+    packets.append(lap_header + (lap_entry * 22) + b"\xff\xff")
+    return packets
+
+
+def send_simulated_lap(ip: str = "127.0.0.1", port: int = 20777, delay: float = 0.005):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    print(f"🚀 Iniciando emissor simulado de telemetria para {ip}:{port}...")
+    packets = generate_simulated_lap_packets()
+    for pkt in packets:
+        sock.sendto(pkt, (ip, port))
+        if delay > 0:
+            time.sleep(delay)
     print("🏁 Volta simulada enviada com sucesso!")
     sock.close()
 

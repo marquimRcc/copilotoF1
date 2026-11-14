@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 from recorder import F1TelemetryRecorder
 from analyzer import LapAnalyzer, load_telemetry_csv
-from tests.mock_sender import send_simulated_lap
+from tests.mock_sender import generate_simulated_lap_packets, send_simulated_lap
 
 
 class TestEndToEndPipeline(unittest.TestCase):
@@ -28,19 +28,15 @@ class TestEndToEndPipeline(unittest.TestCase):
             shutil.rmtree(self.test_output_dir)
 
     def test_record_and_analyze(self):
-        test_port = 20788
-        recorder = F1TelemetryRecorder(host="127.0.0.1", port=test_port, output_dir=self.test_output_dir)
+        recorder = F1TelemetryRecorder(host="127.0.0.1", port=20788, output_dir=self.test_output_dir)
 
-        # Inicia o gravador em uma thread separada
-        recorder_thread = threading.Thread(target=recorder.start, daemon=True)
-        recorder_thread.start()
-        time.sleep(0.2)  # Aguarda socket abrir
+        # Processa a sequência determinística de pacotes simulados da volta completa
+        packets = generate_simulated_lap_packets()
+        for pkt in packets:
+            recorder.process_packet(pkt)
 
-        # Emite os dados simulados na porta dedicada de teste
-        send_simulated_lap(port=test_port)
-        time.sleep(0.5)  # Aguarda salvar
-
-        # Para o gravador
+        # Aguarda escrita assíncrona da fila em disco
+        time.sleep(0.4)
         recorder.close()
 
         # Verifica se o arquivo CSV foi gerado

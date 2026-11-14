@@ -159,13 +159,19 @@ class CornerStateMachine:
 
         # 0. Trava de Volta de Lançamento / Aquecimento (Out-Lap / Grid / Garagem)
         # O F1 envia lap_distance negativa (ex: -450m a -0.1m) ou cronômetro em 0 na tomada de tempo
+        track_len = max(1000.0, float(circuit.length)) if (circuit and circuit.length) else 4300.0
         is_out_lap = (
             lap_distance < 0.0
             or driver_status in (0, 3)
-            or (current_lap_time_ms == 0 and lap_distance < 100.0)
+            or (current_lap_time_ms == 0 and (lap_distance > (track_len - 1600.0) or lap_distance < 15.0))
         )
         if is_out_lap:
-            dist_to_start_line = abs(lap_distance) if lap_distance < 0.0 else max(0.0, 0.0 - lap_distance)
+            if lap_distance < 0.0:
+                dist_to_start_line = abs(lap_distance)
+            elif lap_distance > 500.0:
+                dist_to_start_line = max(0.0, track_len - lap_distance)
+            else:
+                dist_to_start_line = max(0.0, -lap_distance)
             dist_to_apex = dist_to_start_line + first_corner.apex_distance
             return "lancamento", first_corner, dist_to_start_line, dist_to_apex
 

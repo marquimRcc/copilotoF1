@@ -103,20 +103,14 @@ class F1UdpListener:
                 # Critério de volta rápida iniciada (destrava no metro 0 com cronômetro rodando)
                 is_flying_lap = (
                     lap.lap_distance >= 0.0
-                    and (lap.current_lap_time_ms > 0 or lap.current_lap_num > 1)
-                    and lap.driver_status not in (0, 3)
+                    and lap.current_lap_time_ms > 0
+                    and lap.driver_status not in (0, 2, 3)
                 )
 
                 # Detecção de transição de volta
                 with self._lock:
-                    # Descarta volta se entrou nos boxes (In-Lap / retorno)
-                    if lap.driver_status == 2:
-                        self.lap_samples.clear()
-                        self.active_lap_num = 0
-                        return
-
+                    # 1. Conclusão de volta (lap_num incrementou)
                     if self.active_lap_num > 0 and lap.current_lap_num > self.active_lap_num:
-                        # Concluiu a volta
                         if self.record_csv and self.recorder and len(self.lap_samples) >= 30 and lap.last_lap_time_ms > 0:
                             self.recorder.enqueue_lap(
                                 samples=self.lap_samples,
@@ -135,6 +129,17 @@ class F1UdpListener:
                         self.active_lap_num = lap.current_lap_num if is_flying_lap else 0
                         self.last_lap_invalid = lap.current_lap_invalid
 
+                    # 2. Descarta volta se entrou nos boxes (In-Lap / retorno)
+                    elif lap.driver_status == 2:
+                        self.lap_samples.clear()
+                        self.active_lap_num = 0
+
+                    # 3. Descarta se reiniciou a volta na mesma numeração (cronômetro zerado no meio da mesma volta)
+                    elif self.active_lap_num == lap.current_lap_num and lap.current_lap_time_ms == 0 and len(self.lap_samples) > 0:
+                        self.lap_samples.clear()
+                        self.active_lap_num = 0
+
+                    # 4. Início de nova volta rápida
                     elif is_flying_lap and self.active_lap_num == 0:
                         self.active_lap_num = lap.current_lap_num
                         self.last_lap_invalid = lap.current_lap_invalid

@@ -57,6 +57,44 @@ class TestHudStateMachine(unittest.TestCase):
         self.hud._update_corner_logic()
         self.assertEqual(self.hud.current_state, "reta")
 
+    def test_interlagos_time_trial_and_grid_start(self):
+        """Valida comportamento real do F1 25: Tomada de Tempo em Interlagos e Grid de Largada."""
+        from tracks.circuits import get_circuit_by_track_id
+        interlagos = get_circuit_by_track_id(16)
+        self.hud.state.circuit = interlagos
+
+        # 1. Spawn no Time Trial antes da reta (2833.4m em pista de 4309m com cronômetro em 0)
+        self.hud.state.lap_distance = 2833.4
+        self.hud.state.lap_time_ms = 0
+        self.hud.state.driver_status = 1
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "lancamento")
+        self.assertAlmostEqual(self.hud.dist_to_brake, 4309 - 2833.4, delta=0.5)
+        self.assertEqual(self.hud.next_corner.name, "S do Senna")
+
+        # 2. Carro acelerando na subida dos boxes (3800m, cronômetro ainda em 0)
+        self.hud.state.lap_distance = 3800.0
+        self.hud.state.lap_time_ms = 0
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "lancamento")
+        self.assertAlmostEqual(self.hud.dist_to_brake, 509.0, delta=0.5)
+
+        # 3. Cruzou a linha de largada! (lap_distance = 10m, lap_time_ms > 0)
+        self.hud.state.lap_distance = 10.0
+        self.hud.state.lap_time_ms = 150
+        self.hud.state.speed = 280
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "reta")
+        self.assertEqual(self.hud.next_corner.name, "S do Senna")
+
+        # 4. Grid de Largada em corrida (carro parado na largada, dist = 0.0m, speed = 0, lap_time_ms = 0)
+        self.hud.state.lap_distance = 0.0
+        self.hud.state.speed = 0
+        self.hud.state.lap_time_ms = 0
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "lancamento")
+        self.assertEqual(self.hud.dist_to_brake, 0.0)
+
 
 
     def test_theme_and_layout_switching(self):
