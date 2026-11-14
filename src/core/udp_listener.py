@@ -97,13 +97,27 @@ class F1UdpListener:
                     lap_time_ms=lap.current_lap_time_ms,
                     last_time_ms=lap.last_lap_time_ms,
                     is_valid=not lap.current_lap_invalid,
+                    driver_status=lap.driver_status,
+                )
+
+                # Critério de volta rápida iniciada (destrava no metro 0 com cronômetro rodando)
+                is_flying_lap = (
+                    lap.lap_distance >= 0.0
+                    and (lap.current_lap_time_ms > 0 or lap.current_lap_num > 1)
+                    and lap.driver_status not in (0, 3)
                 )
 
                 # Detecção de transição de volta
                 with self._lock:
+                    # Descarta volta se entrou nos boxes (In-Lap / retorno)
+                    if lap.driver_status == 2:
+                        self.lap_samples.clear()
+                        self.active_lap_num = 0
+                        return
+
                     if self.active_lap_num > 0 and lap.current_lap_num > self.active_lap_num:
                         # Concluiu a volta
-                        if self.record_csv and self.recorder:
+                        if self.record_csv and self.recorder and len(self.lap_samples) >= 30 and lap.last_lap_time_ms > 0:
                             self.recorder.enqueue_lap(
                                 samples=self.lap_samples,
                                 lap_number=self.active_lap_num,
@@ -118,10 +132,10 @@ class F1UdpListener:
                             self.state.finalize_auto_learning()
 
                         self.lap_samples.clear()
-                        self.active_lap_num = lap.current_lap_num
+                        self.active_lap_num = lap.current_lap_num if is_flying_lap else 0
                         self.last_lap_invalid = lap.current_lap_invalid
 
-                    elif self.active_lap_num == 0 and lap.current_lap_num > 0:
+                    elif is_flying_lap and self.active_lap_num == 0:
                         self.active_lap_num = lap.current_lap_num
                         self.last_lap_invalid = lap.current_lap_invalid
 
@@ -139,7 +153,7 @@ class F1UdpListener:
                     drs=tel.drs,
                 )
 
-                if self.record_csv and self.active_lap_num > 0:
+                if self.record_csv and self.active_lap_num > 0 and self.state.lap_distance >= 0.0:
                     with self._lock:
                         sample = {
                             "session_time": round(header.session_time, 3),

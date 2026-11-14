@@ -159,10 +159,24 @@ class F1HudOverlay:
 
     def _update_corner_logic(self):
         """Atualiza a máquina de estados (compatibilidade e testes)."""
+        # Trava de Volta de Lançamento / Aquecimento (Out-Lap / Grid / Garagem)
+        if (
+            self.state.lap_distance < 0.0
+            or self.state.driver_status in (0, 3)
+            or (self.state.lap_time_ms == 0 and self.state.lap_distance < 100.0)
+        ):
+            c0 = self.state.circuit.corners[0] if (self.state.circuit and self.state.circuit.corners) else None
+            d = abs(self.state.lap_distance) if self.state.lap_distance < 0.0 else max(0.0, 0.0 - self.state.lap_distance)
+            self.state.current_state = "lancamento"
+            self.state.next_corner = c0
+            self.state.dist_to_brake = d
+            self.state.dist_to_apex = d + (c0.apex_distance if c0 else 100.0)
+            return
+
         # Se o carro está em movimento (speed > 0), aplica a cinemática modular adaptativa
         if self.state.speed > 0:
             st, corner, d_brake, d_apex = CornerStateMachine.update(
-                self.state.lap_distance, self.state.speed, self.state.circuit
+                self.state.lap_distance, self.state.speed, self.state.circuit, self.state.lap_time_ms, self.state.driver_status
             )
             self.state.current_state = st
             self.state.next_corner = corner
@@ -595,6 +609,7 @@ class F1HudOverlay:
                     "freia_pulse": ("FREIA AGORA!", f"ALVO: {gear_str}ª MARCHA"),
                     "apice": ("ÁPICE / CONTORNO", "MANTENHA A TRAJETÓRIA"),
                     "acelera": ("ACELERAÇÃO!", "TRACIONAR NA SAÍDA"),
+                    "lancamento": ("VOLTA DE LANÇAMENTO", f"LARGADA EM {dist_str}"),
                 }
                 main_txt, sub_txt = state_labels.get(state, ("RETA", ""))
                 self.l1_lbl_main.config(text=main_txt, fg=color_cfg["text"], bg=color_cfg["bg"])
@@ -619,12 +634,19 @@ class F1HudOverlay:
                     "freia_pulse": ["#ff2800"] * 8,
                     "apice": ["#38bdf8"] * 4 + [off] * 4,
                     "acelera": ["#22c55e"] * 8,
+                    "lancamento": ["#f59e0b"] * 4 + [off] * 4,
                 }
                 colors = led_colors.get(state, led_colors["reta"])
                 for i, col in enumerate(colors):
                     self.f2_leds[i].configure(bg=col)
 
-                if state == "reta":
+                if state == "lancamento":
+                    self.l2_lbl_corner.config(text="VOLTA DE LANÇAMENTO")
+                    self.l2_lbl_dist.config(text=dist_str)
+                    self.l2_lbl_action.config(text=f"LARGADA EM {dist_str}", fg="#f59e0b")
+                    bar_color = "#f59e0b"
+                    pct = max(0.0, min(1.0, 1.0 - (dist_to_brake / 500.0)))
+                elif state == "reta":
                     self.l2_lbl_action.config(text="ACELERAR", fg=theme["muted"])
                     bar_color = theme["accent"]
                     pct = 0.0
@@ -661,7 +683,11 @@ class F1HudOverlay:
                 self.l3_lbl_track.config(text=f"{snap['track_name'].upper()} • {corner_num}")
                 self.l3_lbl_gear_big.config(text=gear_str)
 
-                if state == "reta":
+                if state == "lancamento":
+                    self.l3_badge_status.config(text="LANÇAMENTO", bg="#78350f", fg="#fef08a")
+                    self.l3_lbl_action.config(text=f"LARGADA EM {dist_str}", fg="#f59e0b")
+                    self.l3_lbl_tip.config(text="Prepare a saída da última curva para abrir a volta rápida")
+                elif state == "reta":
                     self.l3_badge_status.config(text="RETA", bg=theme["track_bg"], fg=theme["muted"])
                     self.l3_lbl_action.config(text="100% ACELERADOR", fg=theme["text"])
                     self.l3_lbl_tip.config(text=f"Próxima freada em {dist_str}" if dist_to_brake < 800 else feedback)

@@ -105,6 +105,46 @@ class TestCoreComponents(unittest.TestCase):
         self.assertEqual(snap["lap_number"], 2)
         self.assertTrue(snap["is_lap_valid"])
 
+    def test_time_trial_out_lap_detection(self):
+        # Monza (ID 11)
+        circuit = get_circuit_by_track_id(11)
+
+        # 1. Spawn no Time Trial antes da última curva (-450m, t=0, driver_status=3)
+        st, corner, d_brake, d_apex = CornerStateMachine.update(
+            lap_distance=-450.0,
+            speed_kmh=240,
+            circuit=circuit,
+            current_lap_time_ms=0,
+            driver_status=3,
+        )
+        self.assertEqual(st, "lancamento")
+        self.assertEqual(d_brake, 450.0, "Distância até a largada deve ser positiva.")
+        self.assertIsNotNone(corner)
+        self.assertEqual(corner.number, "1-2")
+
+        # 2. Aproximação da linha de chegada (-80m, t=0)
+        st, corner, d_brake, d_apex = CornerStateMachine.update(
+            lap_distance=-80.0,
+            speed_kmh=290,
+            circuit=circuit,
+            current_lap_time_ms=0,
+            driver_status=3,
+        )
+        self.assertEqual(st, "lancamento")
+        self.assertEqual(d_brake, 80.0)
+
+        # 3. Cruzamento da linha no metro zero (início da Flying Lap, t=100ms, driver_status=1)
+        st, corner, d_brake, d_apex = CornerStateMachine.update(
+            lap_distance=15.0,
+            speed_kmh=310,
+            circuit=circuit,
+            current_lap_time_ms=100,
+            driver_status=1,
+        )
+        self.assertEqual(st, "reta")
+        self.assertEqual(corner.number, "1-2")
+        self.assertTrue(d_brake > 100.0, "Deve calcular distância positiva até a C1 após cruzar a linha.")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -24,6 +24,7 @@ THEMES: Dict[str, Dict] = {
         "freia_pulse": {"bg": "#ef4444", "text": "#ffffff", "sub": "#ffffff", "top": "#991b1b"},
         "apice": {"bg": "#0284c7", "text": "#ffffff", "sub": "#e0f2fe", "top": "#075985"},
         "acelera": {"bg": "#16a34a", "text": "#ffffff", "sub": "#f0fdf4", "top": "#14532d"},
+        "lancamento": {"bg": "#78350f", "text": "#fef08a", "sub": "#fef9c3", "top": "#fef08a"},
     },
     "ferrari": {
         "label": "Scuderia Ferrari",
@@ -41,6 +42,7 @@ THEMES: Dict[str, Dict] = {
         "freia_pulse": {"bg": "#ff2800", "text": "#ffffff", "sub": "#ffffff", "top": "#991b1b"},
         "apice": {"bg": "#0284c7", "text": "#ffffff", "sub": "#e0f2fe", "top": "#075985"},
         "acelera": {"bg": "#16a34a", "text": "#ffffff", "sub": "#f0fdf4", "top": "#14532d"},
+        "lancamento": {"bg": "#422006", "text": "#fef08a", "sub": "#fef9c3", "top": "#fef08a"},
     },
     "mercedes": {
         "label": "Mercedes-AMG Petronas",
@@ -58,6 +60,7 @@ THEMES: Dict[str, Dict] = {
         "freia_pulse": {"bg": "#ef4444", "text": "#ffffff", "sub": "#ffffff", "top": "#991b1b"},
         "apice": {"bg": "#00a19c", "text": "#ffffff", "sub": "#ccfbf1", "top": "#115e59"},
         "acelera": {"bg": "#10b981", "text": "#ffffff", "sub": "#ecfdf5", "top": "#065f46"},
+        "lancamento": {"bg": "#0f3838", "text": "#a7f3d0", "sub": "#ecfdf5", "top": "#a7f3d0"},
     },
     "redbull": {
         "label": "Red Bull Racing",
@@ -75,6 +78,7 @@ THEMES: Dict[str, Dict] = {
         "freia_pulse": {"bg": "#f43f5e", "text": "#ffffff", "sub": "#ffffff", "top": "#9f1239"},
         "apice": {"bg": "#0284c7", "text": "#ffffff", "sub": "#e0f2fe", "top": "#075985"},
         "acelera": {"bg": "#16a34a", "text": "#ffffff", "sub": "#f0fdf4", "top": "#14532d"},
+        "lancamento": {"bg": "#422006", "text": "#fef08a", "sub": "#fef9c3", "top": "#fef08a"},
     },
     "mclaren": {
         "label": "McLaren Papaya",
@@ -92,6 +96,7 @@ THEMES: Dict[str, Dict] = {
         "freia_pulse": {"bg": "#ef4444", "text": "#ffffff", "sub": "#ffffff", "top": "#991b1b"},
         "apice": {"bg": "#0284c7", "text": "#ffffff", "sub": "#e0f2fe", "top": "#075985"},
         "acelera": {"bg": "#16a34a", "text": "#ffffff", "sub": "#f0fdf4", "top": "#14532d"},
+        "lancamento": {"bg": "#451a03", "text": "#fed7aa", "sub": "#ffedd5", "top": "#fed7aa"},
     },
     "astonmartin": {
         "label": "Aston Martin Racing",
@@ -109,6 +114,7 @@ THEMES: Dict[str, Dict] = {
         "freia_pulse": {"bg": "#ef4444", "text": "#ffffff", "sub": "#ffffff", "top": "#991b1b"},
         "apice": {"bg": "#0284c7", "text": "#ffffff", "sub": "#e0f2fe", "top": "#075985"},
         "acelera": {"bg": "#10b981", "text": "#ffffff", "sub": "#ecfdf5", "top": "#065f46"},
+        "lancamento": {"bg": "#062e26", "text": "#a7f3d0", "sub": "#ecfdf5", "top": "#a7f3d0"},
     },
 }
 
@@ -142,10 +148,26 @@ class CornerStateMachine:
         lap_distance: float,
         speed_kmh: int,
         circuit: Optional[CircuitInfo],
+        current_lap_time_ms: int = 1000,
+        driver_status: int = 1,
     ) -> tuple[str, Optional[CornerZone], float, float]:
         """Calcula o estado atual da curva, próxima curva e distâncias modulares."""
         if not circuit or not circuit.corners:
             return "reta", None, 999.0, 999.0
+
+        first_corner = circuit.corners[0]
+
+        # 0. Trava de Volta de Lançamento / Aquecimento (Out-Lap / Grid / Garagem)
+        # O F1 envia lap_distance negativa (ex: -450m a -0.1m) ou cronômetro em 0 na tomada de tempo
+        is_out_lap = (
+            lap_distance < 0.0
+            or driver_status in (0, 3)
+            or (current_lap_time_ms == 0 and lap_distance < 100.0)
+        )
+        if is_out_lap:
+            dist_to_start_line = abs(lap_distance) if lap_distance < 0.0 else max(0.0, 0.0 - lap_distance)
+            dist_to_apex = dist_to_start_line + first_corner.apex_distance
+            return "lancamento", first_corner, dist_to_start_line, dist_to_apex
 
         track_length = max(1000.0, float(circuit.length))
         norm_dist = lap_distance % track_length
@@ -296,6 +318,7 @@ class TelemetryState:
         self.lap_time_ms: int = 0
         self.last_lap_time_ms: int = 0
         self.is_lap_valid: bool = True
+        self.driver_status: int = 1  # 1=Flying Lap, 2=In-lap, 3=Out-lap, 4=On track
 
         # Circuito e Sessão
         self.track_id: int = 11  # Padrão: Monza
@@ -340,14 +363,14 @@ class TelemetryState:
 
             # Atualiza máquina de estados
             st, corner, d_brake, d_apex = CornerStateMachine.update(
-                self.lap_distance, self.speed, self.circuit
+                self.lap_distance, self.speed, self.circuit, self.lap_time_ms, self.driver_status
             )
             self.current_state = st
             self.next_corner = corner
             self.dist_to_brake = d_brake
             self.dist_to_apex = d_apex
 
-    def update_lap_data(self, lap_dist: float, total_dist: float, lap_num: int, lap_time_ms: int, last_time_ms: int, is_valid: bool):
+    def update_lap_data(self, lap_dist: float, total_dist: float, lap_num: int, lap_time_ms: int, last_time_ms: int, is_valid: bool, driver_status: int = 1):
         with self._lock:
             self.lap_distance = lap_dist
             self.total_distance = total_dist
@@ -355,6 +378,7 @@ class TelemetryState:
             self.lap_time_ms = lap_time_ms
             self.last_lap_time_ms = last_time_ms
             self.is_lap_valid = is_valid
+            self.driver_status = driver_status
 
     def set_session_info(self, track_id: int, track_name: str, track_length: int):
         with self._lock:
@@ -445,4 +469,5 @@ class TelemetryState:
                 "locked_click_through": self.locked_click_through,
                 "last_lap_feedback": self.last_lap_feedback,
                 "best_session_lap_ms": self.best_session_lap_ms,
+                "driver_status": self.driver_status,
             }
