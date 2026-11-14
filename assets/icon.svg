@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#262626"/>
+      <stop offset="100%" stop-color="#0f0f0f"/>
+    </radialGradient>
+    <linearGradient id="redGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ff1e1e"/>
+      <stop offset="100%" stop-color="#b91c1c"/>
+    </linearGradient>
+    <linearGradient id="tireGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#333333"/>
+      <stop offset="100%" stop-color="#111111"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Fundo Circular / Badge para o Systray -->
+  <circle cx="128" cy="128" r="120" fill="url(#bgGrad)" stroke="#ff1e1e" stroke-width="8"/>
+
+  <!-- Silhueta F1 Carro de Corrida (Perfil Esportivo) -->
+  <g transform="translate(10, 20)">
+    <!-- Asa Traseira -->
+    <rect x="25" y="100" width="12" height="42" rx="3" fill="#ffffff"/>
+    <path d="M 20 95 L 48 95 L 44 105 L 20 105 Z" fill="url(#redGrad)"/>
+    <path d="M 28 108 L 52 108 L 48 116 L 28 116 Z" fill="#ffffff"/>
+    
+    <!-- Suporte e Cobertura do Motor (Shark Fin) -->
+    <path d="M 40 120 L 75 88 L 105 88 L 115 110 L 80 120 Z" fill="#b91c1c"/>
+    
+    <!-- Chassi Principal / Bico F1 -->
+    <path d="M 40 130 Q 70 120 120 118 Q 165 118 200 132 Q 220 138 226 142 L 226 148 L 195 146 Q 140 144 40 144 Z" fill="url(#redGrad)"/>
+
+    <!-- Detalhes em Branco (Faixas de corrida) -->
+    <path d="M 85 124 L 145 122 L 155 127 L 95 129 Z" fill="#ffffff"/>
+    
+    <!-- Cockpit / Halo / Capacete do Piloto -->
+    <path d="M 95 112 Q 108 102 120 112 Z" fill="#000000"/>
+    <circle cx="108" cy="110" r="9" fill="#facc15"/><!-- Capacete amarelo -->
+    <path d="M 98 108 Q 112 105 124 116" stroke="#ffffff" stroke-width="3" fill="none"/><!-- Halo -->
+
+    <!-- Asa Dianteira -->
+    <path d="M 205 145 L 232 145 L 230 152 L 202 152 Z" fill="#ffffff"/>
+    <rect x="228" y="140" width="5" height="15" rx="2" fill="url(#redGrad)"/>
+
+    <!-- Pneus F1 (Slick pretos com aro vermelho) -->
+    <!-- Roda Traseira -->
+    <circle cx="65" cy="148" r="28" fill="url(#tireGrad)"/>
+    <circle cx="65" cy="148" r="23" stroke="#e11d48" stroke-width="2" fill="#1c1917"/>
+    <circle cx="65" cy="148" r="10" fill="#737373"/>
+    <circle cx="65" cy="148" r="4" fill="#ffffff"/>
+
+    <!-- Roda Dianteira -->
+    <circle cx="180" cy="148" r="25" fill="url(#tireGrad)"/>
+    <circle cx="180" cy="148" r="20" stroke="#e11d48" stroke-width="2" fill="#1c1917"/>
+    <circle cx="180" cy="148" r="9" fill="#737373"/>
+    <circle cx="180" cy="148" r="4" fill="#ffffff"/>
+
+    <!-- Efeito de velocidade no asfalto -->
+    <line x1="18" y1="180" x2="60" y2="180" stroke="#ff1e1e" stroke-width="3" stroke-linecap="round"/>
+    <line x1="75" y1="180" x2="150" y2="180" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+    <line x1="165" y1="180" x2="225" y2="180" stroke="#ff1e1e" stroke-width="3" stroke-linecap="round"/>
+  </g>
+</svg>

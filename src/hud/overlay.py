@@ -95,6 +95,23 @@ class F1HudOverlay:
         self.root.attributes("-topmost", True)
         self.root.configure(bg=COLORS["reta"]["bg"])
 
+        # Carrega o ícone oficial do Copiloto F1 (PNG / ICO)
+        assets_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "assets"))
+        icon_png = os.path.join(assets_dir, "icon.png")
+        icon_ico = os.path.join(assets_dir, "icon.ico")
+
+        if os.path.exists(icon_png):
+            try:
+                self.icon_photo = tk.PhotoImage(file=icon_png)
+                self.root.iconphoto(False, self.icon_photo)
+            except Exception:
+                pass
+        if os.path.exists(icon_ico) and sys.platform.startswith("win"):
+            try:
+                self.root.iconbitmap(icon_ico)
+            except Exception:
+                pass
+
         # Container Principal
         self.container = tk.Frame(self.root, bg=COLORS["reta"]["bg"])
         self.container.pack(fill=tk.BOTH, expand=True)
@@ -290,12 +307,18 @@ class F1HudOverlay:
             return
 
         def _run_systray():
-            # Gera ícone dinâmico 64x64 de um volante F1 vermelho
-            img = Image.new("RGBA", (64, 64), color=(0, 0, 0, 0))
-            draw = ImageDraw.Draw(img)
-            draw.ellipse((4, 4, 60, 60), fill="#dc2626", outline="#ffffff", width=2)
-            draw.rectangle((18, 26, 46, 38), fill="#171717")
-            draw.text((22, 26), "F1", fill="#ffffff")
+            # Carrega o ícone oficial gerado em assets/icon.png
+            assets_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "assets"))
+            icon_path = os.path.join(assets_dir, "icon.png")
+
+            if os.path.exists(icon_path):
+                img = Image.open(icon_path)
+            else:
+                img = Image.new("RGBA", (64, 64), color=(0, 0, 0, 0))
+                draw = ImageDraw.Draw(img)
+                draw.ellipse((4, 4, 60, 60), fill="#dc2626", outline="#ffffff", width=2)
+                draw.rectangle((18, 26, 46, 38), fill="#171717")
+                draw.text((22, 26), "F1", fill="#ffffff")
 
             systray_menu = pystray.Menu(
                 pystray.MenuItem("Copiloto F1 - HUD", None, enabled=False),

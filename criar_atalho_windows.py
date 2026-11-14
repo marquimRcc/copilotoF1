@@ -21,15 +21,19 @@ def create_desktop_shortcut():
 
     repo_dir = os.path.abspath(os.path.dirname(__file__))
     target_bat = os.path.join(repo_dir, "iniciar_hud.bat")
+    icon_ico = os.path.join(repo_dir, "assets", "icon.ico")
     shortcut_path = os.path.join(desktop, "Copiloto F1 HUD.lnk")
 
-    # Comando PowerShell para gerar o arquivo .lnk usando WScript.Shell
+    # Comando PowerShell para gerar o arquivo .lnk com o ícone oficial
     ps_command = f"""
     $WshShell = New-Object -ComObject WScript.Shell
     $Shortcut = $WshShell.CreateShortcut('{shortcut_path}')
     $Shortcut.TargetPath = '{target_bat}'
     $Shortcut.WorkingDirectory = '{repo_dir}'
     $Shortcut.Description = 'Copiloto F1 - HUD de Telemetria e Ponto de Frenagem'
+    if (Test-Path '{icon_ico}') {{
+        $Shortcut.IconLocation = '{icon_ico}'
+    }}
     $Shortcut.WindowStyle = 1
     $Shortcut.Save()
     """
