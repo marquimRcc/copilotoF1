@@ -34,7 +34,7 @@ def create_desktop_shortcut():
     if (Test-Path '{icon_ico}') {{
         $Shortcut.IconLocation = '{icon_ico}'
     }}
-    $Shortcut.WindowStyle = 1
+    $Shortcut.WindowStyle = 7
     $Shortcut.Save()
     """
 

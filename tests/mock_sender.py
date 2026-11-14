@@ -15,15 +15,15 @@ UDP_IP = "127.0.0.1"
 UDP_PORT = 20777
 
 
-def send_simulated_lap():
+def send_simulated_lap(ip: str = "127.0.0.1", port: int = 20777, delay: float = 0.005):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    print(f"🚀 Iniciando emissor simulado de telemetria para {UDP_IP}:{UDP_PORT}...")
+    print(f"🚀 Iniciando emissor simulado de telemetria para {ip}:{port}...")
 
     # 1. Envia Pacote de Sessão (Monza, ID 11)
     session_header = struct.pack(HEADER_FORMAT_29, 2024, 24, 1, 0, 1, 1, 999999, 10.0, 1, 1, 0, 255)
     session_body = struct.pack(SESSION_DATA_FORMAT, 0, 32, 24, 20, 5793, 13, 11)
-    sock.sendto(session_header + session_body, (UDP_IP, UDP_PORT))
-    time.sleep(0.05)
+    sock.sendto(session_header + session_body, (ip, port))
+    time.sleep(0.02)
 
     total_distance = 5793.0
     current_dist = 0.0
@@ -73,11 +73,20 @@ def send_simulated_lap():
         lap_header = struct.pack(HEADER_FORMAT_29, 2024, 24, 1, 0, 1, 2, 999999, session_time, 10, 10, 0, 255)
         lap_entry = struct.pack(
             LAP_DATA_ENTRY_FORMAT,
-            81400, lap_time_ms, 30000, 1, 32000, 1, 0, 0, 0, 0,
-            float(current_dist), float(current_dist), 0.0, 1, lap_num,
-            0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 4, 2, 0, 0, 0, 0, 340.0, 1
+            81400, lap_time_ms,
+            30000, 1,
+            32000, 1,
+            0, 0,
+            0, 0,
+            float(current_dist), float(current_dist), 0.0,
+            1, lap_num,
+            0, 0, 1, 0,
+            0, 0, 0, 0, 0,
+            1, 4, 2, 0,
+            0, 0, 0,
+            340.0, 1
         )
-        sock.sendto(lap_header + (lap_entry * 22) + b"\xff\xff", (UDP_IP, UDP_PORT))
+        sock.sendto(lap_header + (lap_entry * 22) + b"\xff\xff", (ip, port))
 
         # Pacote CarTelemetry (ID 6)
         tel_header = struct.pack(HEADER_FORMAT_29, 2024, 24, 1, 0, 1, 6, 999999, session_time, 10, 10, 0, 255)
@@ -87,9 +96,9 @@ def send_simulated_lap():
             400, 400, 420, 420, 95, 95, 90, 90, 100, 100, 95, 95,
             105, 23.5, 23.5, 24.0, 24.0, 0, 0, 0, 0
         )
-        sock.sendto(tel_header + (tel_entry * 22) + b"\x00\x00\x00", (UDP_IP, UDP_PORT))
+        sock.sendto(tel_header + (tel_entry * 22) + b"\x00\x00\x00", (ip, port))
 
-        time.sleep(0.01)
+        time.sleep(delay)
 
     # Conclusão da volta (incrementa lap_num para 2 para disparar o salvamento)
     lap_num = 2
@@ -97,11 +106,20 @@ def send_simulated_lap():
     lap_header = struct.pack(HEADER_FORMAT_29, 2024, 24, 1, 0, 1, 2, 999999, session_time, 11, 11, 0, 255)
     lap_entry = struct.pack(
         LAP_DATA_ENTRY_FORMAT,
-        lap_time_ms, 0, 30000, 1, 32000, 1, 0, 0, 0, 0,
-        10.0, float(total_distance + 10), 0.0, 1, lap_num,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 4, 2, 0, 0, 0, 0, 340.0, 1
+        lap_time_ms, 0,
+        30000, 1,
+        32000, 1,
+        0, 0,
+        0, 0,
+        10.0, float(total_distance + 10), 0.0,
+        1, lap_num,
+        0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+        1, 4, 2, 0,
+        0, 0, 0,
+        340.0, 1
     )
-    sock.sendto(lap_header + (lap_entry * 22) + b"\xff\xff", (UDP_IP, UDP_PORT))
+    sock.sendto(lap_header + (lap_entry * 22) + b"\xff\xff", (ip, port))
     print("🏁 Volta simulada enviada com sucesso!")
     sock.close()
 

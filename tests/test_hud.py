@@ -11,14 +11,19 @@ from hud.overlay import F1HudOverlay
 
 
 class TestHudStateMachine(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # Instancia uma única janela HUD para a suíte de testes
+        cls.hud = F1HudOverlay(port=29999, record_csv=False)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.hud.on_close()
+
     def setUp(self):
-        # Instancia o HUD com gravação desativada para teste
-        self.hud = F1HudOverlay(port=29999, record_csv=False)
         self.hud.track_id = 11  # Monza
         self.hud.circuit = get_circuit_by_track_id(11)
-
-    def tearDown(self):
-        self.hud.on_close()
+        self.hud.state.speed = 0
 
     def test_corner_state_machine_monza(self):
         # 1. Reta dos Boxes (distância = 200m, C1 começa aos 420m)
@@ -51,6 +56,25 @@ class TestHudStateMachine(unittest.TestCase):
         self.hud.lap_distance = 1000.0
         self.hud._update_corner_logic()
         self.assertEqual(self.hud.current_state, "reta")
+
+
+
+    def test_theme_and_layout_switching(self):
+        from hud.overlay import THEMES
+        for theme_key in THEMES:
+            self.hud.set_theme(theme_key)
+            self.assertEqual(self.hud.active_theme, theme_key)
+        for layout_id in (1, 2, 3):
+            self.hud.set_layout(layout_id)
+            self.assertEqual(self.hud.active_layout, layout_id)
+
+
+
+    def test_manual_track_selection(self):
+        self.hud.set_track(16, manual=True)
+        self.assertEqual(self.hud.track_id, 16)
+        self.assertTrue(self.hud.manual_track_override)
+        self.assertIn("Interlagos", self.hud.track_name)
 
 
 if __name__ == "__main__":

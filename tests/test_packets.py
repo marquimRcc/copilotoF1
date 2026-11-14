@@ -155,7 +155,7 @@ class TestPacketParsers(unittest.TestCase):
     def test_circuits_mapping(self):
         monza = get_circuit_by_track_id(11)
         self.assertIsNotNone(monza)
-        self.assertEqual(monza.name, "Autodromo Nazionale Monza")
+        self.assertEqual(monza.name, "Monza")
         self.assertTrue(len(monza.corners) >= 6)
 
 

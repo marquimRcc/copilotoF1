@@ -36,6 +36,7 @@ venv/
 
 # Dados de telemetria gravados (manter pasta mas ignorar CSVs gerados)
 data/*.csv
+data/*.txt
 !data/.gitkeep
 
 # Logs

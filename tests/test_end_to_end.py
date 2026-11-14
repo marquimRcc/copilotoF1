@@ -28,15 +28,16 @@ class TestEndToEndPipeline(unittest.TestCase):
             shutil.rmtree(self.test_output_dir)
 
     def test_record_and_analyze(self):
-        recorder = F1TelemetryRecorder(host="127.0.0.1", port=20777, output_dir=self.test_output_dir)
+        test_port = 20788
+        recorder = F1TelemetryRecorder(host="127.0.0.1", port=test_port, output_dir=self.test_output_dir)
 
         # Inicia o gravador em uma thread separada
         recorder_thread = threading.Thread(target=recorder.start, daemon=True)
         recorder_thread.start()
         time.sleep(0.2)  # Aguarda socket abrir
 
-        # Emite os dados simulados
-        send_simulated_lap()
+        # Emite os dados simulados na porta dedicada de teste
+        send_simulated_lap(port=test_port)
         time.sleep(0.5)  # Aguarda salvar
 
         # Para o gravador
