@@ -1,4 +1,9 @@
 # Dependências principais:
-# O núcleo de captura UDP e análise funciona com bibliotecas nativas do Python 3 (socket, struct, csv, math).
-# Dependências opcionais para testes avançados e manipulação opcional:
+# O núcleo de captura UDP e análise funciona com bibliotecas nativas do Python 3 (socket, struct, csv, math, tkinter).
+
+# Dependências para ícone na bandeja do sistema (Systray) no Windows:
+pystray>=0.19.5
+pillow>=10.0.0
+
+# Testes automatizados:
 pytest>=7.0.0
