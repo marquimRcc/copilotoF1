@@ -1,0 +1,4 @@
+# Dependências principais:
+# O núcleo de captura UDP e análise funciona com bibliotecas nativas do Python 3 (socket, struct, csv, math).
+# Dependências opcionais para testes avançados e manipulação opcional:
+pytest>=7.0.0
