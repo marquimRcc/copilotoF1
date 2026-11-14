@@ -12,8 +12,8 @@ Documento de acompanhamento do plano, fases e próximos passos.
 | Fase | Descrição | Status | Detalhes |
 |---|---|---|---|
 | **Fase 1** | Fundação, Protocolo UDP F1 e Gravador CSV | ✅ **Concluído** | Parsers de pacotes (Header, Telemetry, LapData, Session), Gravador CSV e Simulador de testes locais. |
-| **Fase 2** | Motor de Análise e Diagnósticos Curva a Curva | ✅ **Concluído (Base)** | Motor de diagnóstico em linguagem humana calculando ponto de freio, velocidade de ápice, hesitação e marcha. Circuitos: Monza, Interlagos, Spa, Silverstone, Red Bull Ring. |
-| **Fase 3** | HUD Compacto em Tempo Real (450x230) para Windows | ⏳ **Próximo Passo** | Janela flutuante minimalista (Always on Top) com alerta visual "FREIA!", atalho `.bat`/`.lnk` para Área de Trabalho. |
+| **Fase 2** | Motor de Análise e Diagnósticos Curva a Curva | ✅ **Concluído** | Motor de diagnóstico em linguagem humana calculando ponto de freio, velocidade de ápice, hesitação e marcha. Circuitos: Monza, Interlagos, Spa, Silverstone, Red Bull Ring. |
+| **Fase 3** | HUD Compacto em Tempo Real (450x230) para Windows | ✅ **Concluído** | Janela flutuante minimalista (Always on Top) com Layout 1 (Flag Periférica), gravador CSV embutido, `iniciar_hud.bat` e criador de atalho para Área de Trabalho. |
 
 ---
 

@@ -37,29 +37,26 @@ Para que o Copiloto F1 receba seus dados, ative a saída de telemetria nas confi
 
 ## 🚀 Como Usar
 
-### 1. Iniciar o Gravador de Telemetria
-Abra um terminal (no Windows, PowerShell ou CMD) e execute:
+### 1. Iniciar o HUD em Tempo Real (Recomendado)
+A janela do HUD (450x230) fica sempre no topo (Always on Top) sobre o jogo, alerta o ponto exato de frenagem com o **Layout 1 (Flag Periférica)** e salva as voltas em CSV automaticamente:
 
+* **No Windows:** Dê 2 cliques no arquivo `iniciar_hud.bat` (ou no atalho da Área de Trabalho).
+* **Ou via terminal:**
+  ```bash
+  python src/hud/overlay.py
+  ```
+* **Dica (Modo Demonstração):** Para testar o visual e a troca de cores sem abrir o jogo:
+  ```bash
+  python src/hud/overlay.py --demo
+  ```
+
+### 2. Criar Atalho na Área de Trabalho (Windows)
+Para abrir o HUD direto da sua Área de Trabalho com 1 clique:
 ```bash
-# Na pasta do projeto:
-python src/recorder.py
+python criar_atalho_windows.py
 ```
 
-O gravador ficará em segundo plano aguardando você pilotar:
-```text
-============================================================
-🏁 COPILOTO F1 - GRAVADOR DE TELEMETRIA INICIADO
-📡 Escutando em 127.0.0.1:20777 (UDP)
-📁 Salvando voltas em: copilotoF1/data
-Aguardando pacotes do F1... (Pressione Ctrl+C para encerrar)
-============================================================
-📍 Circuito detectado: Autodromo Nazionale Monza (5793m)
-🎮 Sessão: Time Trial (Tomada de Tempo)
-✅ [VOLTA GRAVADA] Volta #1 | Tempo: 01:21.432 | Status: Válida | Amostras: 1850
-   Salvo em: data/volta_01_monza__itália_valida_20261114_094000.csv
-```
-
-### 2. Analisar a sua Volta
+### 3. Analisar a sua Volta
 Para gerar o relatório prático em texto de uma volta:
 
 ```bash
@@ -67,7 +64,7 @@ Para gerar o relatório prático em texto de uma volta:
 python src/analyzer.py data/volta_01_monza__itália_valida_20261114_094000.csv --track-id 11
 ```
 
-### 3. Comparar Sua Volta contra sua Melhor Volta (PB) ou Referência
+### 4. Comparar Sua Volta contra sua Melhor Volta (PB) ou Referência
 ```bash
 python src/analyzer.py data/minha_volta.csv --ref-csv data/minha_melhor_volta.csv --track-id 11
 ```
