@@ -257,123 +257,83 @@
       "length": 5412,
       "corners": [
         {
-          "number": "1",
-          "name": "Michael Schumacher",
-          "start_distance": 599.9,
-          "apex_distance": 713.7,
-          "end_distance": 798.7,
-          "gear_reference": 2
-        },
-        {
-          "number": "2",
-          "name": "Curva 2",
-          "start_distance": 680.6,
-          "apex_distance": 815.8,
-          "end_distance": 900.8,
+          "number": "1-2",
+          "name": "Michael Schumacher (S C1-2)",
+          "start_distance": 560.0,
+          "apex_distance": 715.0,
+          "end_distance": 850.0,
           "gear_reference": 2
         },
         {
           "number": "3",
           "name": "Curva 3",
-          "start_distance": 853.6,
-          "apex_distance": 928.6,
-          "end_distance": 1013.6,
-          "gear_reference": 3
+          "start_distance": 860.0,
+          "apex_distance": 930.0,
+          "end_distance": 1020.0,
+          "gear_reference": 4
         },
         {
           "number": "4",
           "name": "Curva 4",
-          "start_distance": 1400.1,
-          "apex_distance": 1511.4,
-          "end_distance": 1596.4,
+          "start_distance": 1380.0,
+          "apex_distance": 1510.0,
+          "end_distance": 1610.0,
           "gear_reference": 4
         },
         {
-          "number": "5",
-          "name": "Curva 5",
-          "start_distance": 1711.6,
-          "apex_distance": 1786.6,
-          "end_distance": 1871.6,
-          "gear_reference": 5
-        },
-        {
-          "number": "6",
-          "name": "Curva 6",
-          "start_distance": 1823.6,
-          "apex_distance": 1880.5,
-          "end_distance": 1965.5,
-          "gear_reference": 6
-        },
-        {
-          "number": "7",
-          "name": "Curva 7",
-          "start_distance": 1838.9,
-          "apex_distance": 1977.4,
-          "end_distance": 2062.4,
+          "number": "5-7",
+          "name": "Esse de Alta (C5-6-7)",
+          "start_distance": 1710.0,
+          "apex_distance": 1890.0,
+          "end_distance": 2070.0,
           "gear_reference": 6
         },
         {
           "number": "8",
-          "name": "Hairpin",
-          "start_distance": 2131.0,
-          "apex_distance": 2238.4,
-          "end_distance": 2323.4,
+          "name": "Hairpin (Grampo)",
+          "start_distance": 2130.0,
+          "apex_distance": 2240.0,
+          "end_distance": 2340.0,
           "gear_reference": 3
         },
         {
-          "number": "9",
-          "name": "Curva 9",
-          "start_distance": 2585.4,
-          "apex_distance": 2614.3,
-          "end_distance": 2699.3,
-          "gear_reference": 3
-        },
-        {
-          "number": "10",
-          "name": "Curva 10",
-          "start_distance": 2585.4,
-          "apex_distance": 2704.1,
-          "end_distance": 2789.1,
+          "number": "9-10",
+          "name": "Descida Cega (C9-10)",
+          "start_distance": 2540.0,
+          "apex_distance": 2680.0,
+          "end_distance": 2800.0,
           "gear_reference": 3
         },
         {
           "number": "11",
-          "name": "Subida Rápida",
-          "start_distance": 3362.8,
-          "apex_distance": 3485.4,
-          "end_distance": 3570.4,
+          "name": "Curva 11",
+          "start_distance": 3340.0,
+          "apex_distance": 3485.0,
+          "end_distance": 3580.0,
           "gear_reference": 5
         },
         {
           "number": "12",
           "name": "Curva 12",
-          "start_distance": 3817.4,
-          "apex_distance": 3892.4,
-          "end_distance": 3977.4,
+          "start_distance": 3800.0,
+          "apex_distance": 3890.0,
+          "end_distance": 3980.0,
           "gear_reference": 7
         },
         {
           "number": "13",
-          "name": "Penúltima Rápida",
-          "start_distance": 3992.3,
-          "apex_distance": 4099.0,
-          "end_distance": 4184.0,
+          "name": "Curva 13",
+          "start_distance": 4000.0,
+          "apex_distance": 4100.0,
+          "end_distance": 4200.0,
           "gear_reference": 4
         },
         {
-          "number": "14",
-          "name": "Curva 14",
-          "start_distance": 4833.1,
-          "apex_distance": 4914.0,
-          "end_distance": 4999.0,
-          "gear_reference": 4
-        },
-        {
-          "number": "15",
-          "name": "Curva 15",
-          "start_distance": 4865.2,
-          "apex_distance": 5005.8,
-          "end_distance": 5090.8,
+          "number": "14-15",
+          "name": "Entrada da Reta (C14-15)",
+          "start_distance": 4800.0,
+          "apex_distance": 4950.0,
+          "end_distance": 5100.0,
           "gear_reference": 4
         }
       ]
@@ -386,107 +346,75 @@
       "corners": [
         {
           "number": "1-2",
-          "name": "Elf / Renault",
-          "start_distance": 709.3,
-          "apex_distance": 821.2,
-          "end_distance": 979.0,
-          "gear_reference": 4
+          "name": "Elf (C1-2)",
+          "start_distance": 580.0,
+          "apex_distance": 720.0,
+          "end_distance": 870.0,
+          "gear_reference": 3
         },
         {
           "number": "3",
           "name": "Curvone Renault",
-          "start_distance": 1078.6,
-          "apex_distance": 1153.6,
-          "end_distance": 1238.6,
+          "start_distance": 880.0,
+          "apex_distance": 1100.0,
+          "end_distance": 1240.0,
           "gear_reference": 6
         },
         {
           "number": "4",
           "name": "Repsol",
-          "start_distance": 1598.8,
-          "apex_distance": 1729.5,
-          "end_distance": 1814.5,
-          "gear_reference": 4
+          "start_distance": 1580.0,
+          "apex_distance": 1730.0,
+          "end_distance": 1830.0,
+          "gear_reference": 3
         },
         {
           "number": "5",
           "name": "Seat (Grampo)",
-          "start_distance": 2048.9,
-          "apex_distance": 2181.4,
-          "end_distance": 2266.4,
-          "gear_reference": 3
+          "start_distance": 2040.0,
+          "apex_distance": 2180.0,
+          "end_distance": 2270.0,
+          "gear_reference": 2
         },
         {
-          "number": "6",
-          "name": "Curva 6",
-          "start_distance": 2285.0,
-          "apex_distance": 2360.0,
-          "end_distance": 2445.0,
+          "number": "7-8",
+          "name": "Campsa (Subida C7-8)",
+          "start_distance": 2420.0,
+          "apex_distance": 2560.0,
+          "end_distance": 2710.0,
           "gear_reference": 5
         },
         {
-          "number": "7",
-          "name": "Curva 7",
-          "start_distance": 2457.4,
-          "apex_distance": 2527.4,
-          "end_distance": 2612.4,
-          "gear_reference": 4
-        },
-        {
-          "number": "8",
-          "name": "Curva 8",
-          "start_distance": 2476.7,
-          "apex_distance": 2619.4,
-          "end_distance": 2704.4,
-          "gear_reference": 4
-        },
-        {
           "number": "9",
-          "name": "Curva 9",
-          "start_distance": 2823.2,
-          "apex_distance": 2898.2,
-          "end_distance": 2983.2,
+          "name": "Curva 9 (Rápida)",
+          "start_distance": 2810.0,
+          "apex_distance": 2900.0,
+          "end_distance": 2990.0,
           "gear_reference": 6
         },
         {
           "number": "10",
           "name": "La Caixa",
-          "start_distance": 3354.9,
-          "apex_distance": 3490.2,
-          "end_distance": 3575.2,
+          "start_distance": 3330.0,
+          "apex_distance": 3490.0,
+          "end_distance": 3580.0,
           "gear_reference": 3
         },
         {
-          "number": "11",
-          "name": "Curva 11",
-          "start_distance": 3555.8,
-          "apex_distance": 3630.8,
-          "end_distance": 3715.8,
-          "gear_reference": 3
-        },
-        {
-          "number": "12",
-          "name": "Curva 12",
-          "start_distance": 3665.1,
-          "apex_distance": 3752.9,
-          "end_distance": 3837.9,
+          "number": "11-12",
+          "name": "Banc Sabadell (C11-12)",
+          "start_distance": 3620.0,
+          "apex_distance": 3750.0,
+          "end_distance": 3850.0,
           "gear_reference": 4
         },
         {
-          "number": "13",
-          "name": "Curva 13",
-          "start_distance": 3939.2,
-          "apex_distance": 4014.2,
-          "end_distance": 4099.2,
-          "gear_reference": 5
-        },
-        {
-          "number": "14",
-          "name": "Curva 14",
-          "start_distance": 4258.7,
-          "apex_distance": 4333.7,
-          "end_distance": 4418.7,
-          "gear_reference": 8
+          "number": "13-14",
+          "name": "Entrada da Reta (Nova C13-14)",
+          "start_distance": 3950.0,
+          "apex_distance": 4150.0,
+          "end_distance": 4400.0,
+          "gear_reference": 7
         }
       ]
     },
@@ -633,100 +561,68 @@
       "length": 4361,
       "corners": [
         {
-          "number": "1",
-          "name": "Curva 1",
-          "start_distance": 126.0,
-          "apex_distance": 223.2,
-          "end_distance": 308.2,
-          "gear_reference": 3
-        },
-        {
-          "number": "2",
-          "name": "Curva 2",
-          "start_distance": 182.6,
-          "apex_distance": 319.2,
-          "end_distance": 404.2,
-          "gear_reference": 3
+          "number": "1-2",
+          "name": "Virage Senna (C1-2)",
+          "start_distance": 120.0,
+          "apex_distance": 260.0,
+          "end_distance": 410.0,
+          "gear_reference": 2
         },
         {
           "number": "3-4",
-          "name": "Chicane 3-4",
-          "start_distance": 635.4,
-          "apex_distance": 706.5,
-          "end_distance": 844.7,
-          "gear_reference": 4
+          "name": "Chicane C3-4",
+          "start_distance": 630.0,
+          "apex_distance": 710.0,
+          "end_distance": 850.0,
+          "gear_reference": 3
         },
         {
           "number": "5",
           "name": "Curva 5",
-          "start_distance": 921.1,
-          "apex_distance": 996.1,
-          "end_distance": 1081.1,
-          "gear_reference": 6
+          "start_distance": 920.0,
+          "apex_distance": 1000.0,
+          "end_distance": 1090.0,
+          "gear_reference": 7
         },
         {
-          "number": "6",
-          "name": "Curva 6",
-          "start_distance": 1135.0,
-          "apex_distance": 1217.5,
-          "end_distance": 1302.5,
+          "number": "6-7",
+          "name": "Pont de la Concorde (C6-7)",
+          "start_distance": 1130.0,
+          "apex_distance": 1250.0,
+          "end_distance": 1390.0,
           "gear_reference": 3
         },
         {
-          "number": "7",
-          "name": "Curva 7",
-          "start_distance": 1160.6,
-          "apex_distance": 1303.3,
-          "end_distance": 1388.3,
-          "gear_reference": 3
-        },
-        {
-          "number": "8",
-          "name": "Curva 8",
-          "start_distance": 1895.0,
-          "apex_distance": 1997.4,
-          "end_distance": 2082.4,
-          "gear_reference": 4
-        },
-        {
-          "number": "9",
-          "name": "Curva 9",
-          "start_distance": 1947.6,
-          "apex_distance": 2077.9,
-          "end_distance": 2162.9,
+          "number": "8-9",
+          "name": "Chicane C8-9",
+          "start_distance": 1890.0,
+          "apex_distance": 2030.0,
+          "end_distance": 2170.0,
           "gear_reference": 4
         },
         {
           "number": "10",
-          "name": "L'Epingle (Hairpin)",
-          "start_distance": 2568.1,
-          "apex_distance": 2682.8,
-          "end_distance": 2767.8,
+          "name": "L'Épingle (Hairpin)",
+          "start_distance": 2560.0,
+          "apex_distance": 2680.0,
+          "end_distance": 2800.0,
           "gear_reference": 2
         },
         {
-          "number": "11",
-          "name": "Curva 11",
-          "start_distance": 2655.4,
-          "apex_distance": 2799.8,
-          "end_distance": 2884.8,
-          "gear_reference": 2
-        },
-        {
-          "number": "12",
-          "name": "Curva 12",
-          "start_distance": 3099.0,
-          "apex_distance": 3174.0,
-          "end_distance": 3259.0,
+          "number": "11-12",
+          "name": "Reta do Cassino (Curva Leve)",
+          "start_distance": 3080.0,
+          "apex_distance": 3200.0,
+          "end_distance": 3350.0,
           "gear_reference": 8
         },
         {
           "number": "13-14",
-          "name": "Chicane do Muro dos Campeões",
-          "start_distance": 3788.6,
-          "apex_distance": 3898.2,
-          "end_distance": 4008.8,
-          "gear_reference": 4
+          "name": "Muro dos Campeões (C13-14)",
+          "start_distance": 3760.0,
+          "apex_distance": 3900.0,
+          "end_distance": 4050.0,
+          "gear_reference": 3
         }
       ]
     },
@@ -939,145 +835,89 @@
         {
           "number": "1",
           "name": "La Source",
-          "start_distance": 255.4,
-          "apex_distance": 367.3,
-          "end_distance": 452.3,
+          "start_distance": 220.0,
+          "apex_distance": 365.0,
+          "end_distance": 480.0,
           "gear_reference": 2
         },
         {
-          "number": "2",
-          "name": "Curva 2",
-          "start_distance": 971.3,
-          "apex_distance": 1046.3,
-          "end_distance": 1131.3,
+          "number": "2-4",
+          "name": "Eau Rouge / Raidillon",
+          "start_distance": 950.0,
+          "apex_distance": 1165.0,
+          "end_distance": 1350.0,
           "gear_reference": 8
         },
         {
-          "number": "3",
-          "name": "Curva 3",
-          "start_distance": 1091.3,
-          "apex_distance": 1166.3,
-          "end_distance": 1251.3,
-          "gear_reference": 8
-        },
-        {
-          "number": "4",
-          "name": "Curva 4",
-          "start_distance": 1192.5,
-          "apex_distance": 1267.5,
-          "end_distance": 1352.5,
-          "gear_reference": 8
-        },
-        {
-          "number": "5",
-          "name": "Curva 5",
-          "start_distance": 2278.7,
-          "apex_distance": 2396.9,
-          "end_distance": 2481.9,
-          "gear_reference": 4
-        },
-        {
-          "number": "6",
-          "name": "Curva 6",
-          "start_distance": 2356.3,
-          "apex_distance": 2484.5,
-          "end_distance": 2569.5,
+          "number": "5-6",
+          "name": "Les Combes",
+          "start_distance": 2250.0,
+          "apex_distance": 2420.0,
+          "end_distance": 2560.0,
           "gear_reference": 4
         },
         {
           "number": "7",
-          "name": "Curva 7",
-          "start_distance": 2579.0,
-          "apex_distance": 2654.0,
-          "end_distance": 2739.0,
-          "gear_reference": 4
+          "name": "Malmedy",
+          "start_distance": 2570.0,
+          "apex_distance": 2650.0,
+          "end_distance": 2750.0,
+          "gear_reference": 5
         },
         {
           "number": "8",
-          "name": "Bruxelles / Rivage",
-          "start_distance": 2915.6,
-          "apex_distance": 3044.9,
-          "end_distance": 3129.9,
+          "name": "Bruxelles (Rivage)",
+          "start_distance": 2900.0,
+          "apex_distance": 3045.0,
+          "end_distance": 3150.0,
           "gear_reference": 3
         },
         {
           "number": "9",
-          "name": "Curva 9",
-          "start_distance": 3215.6,
-          "apex_distance": 3287.8,
-          "end_distance": 3372.8,
+          "name": "Speakers Corner",
+          "start_distance": 3200.0,
+          "apex_distance": 3290.0,
+          "end_distance": 3380.0,
           "gear_reference": 4
         },
         {
-          "number": "10",
-          "name": "Curva 10",
-          "start_distance": 3739.7,
-          "apex_distance": 3827.0,
-          "end_distance": 3912.0,
+          "number": "10-11",
+          "name": "Pouhon (Double Gauche)",
+          "start_distance": 3700.0,
+          "apex_distance": 3890.0,
+          "end_distance": 4120.0,
           "gear_reference": 6
         },
         {
-          "number": "11",
-          "name": "Curva 11",
-          "start_distance": 3995.4,
-          "apex_distance": 4070.4,
-          "end_distance": 4155.4,
-          "gear_reference": 8
-        },
-        {
-          "number": "12",
-          "name": "Curva 12",
-          "start_distance": 4402.7,
-          "apex_distance": 4487.9,
-          "end_distance": 4572.9,
+          "number": "12-13",
+          "name": "Fagnes (Pif-Paf)",
+          "start_distance": 4380.0,
+          "apex_distance": 4520.0,
+          "end_distance": 4700.0,
           "gear_reference": 4
         },
         {
-          "number": "13",
-          "name": "Curva 13",
-          "start_distance": 4573.0,
-          "apex_distance": 4648.0,
-          "end_distance": 4733.0,
-          "gear_reference": 4
+          "number": "14-15",
+          "name": "Campus / Stavelot",
+          "start_distance": 4820.0,
+          "apex_distance": 5020.0,
+          "end_distance": 5260.0,
+          "gear_reference": 5
         },
         {
-          "number": "14",
-          "name": "Curva 14",
-          "start_distance": 4853.7,
-          "apex_distance": 4940.7,
-          "end_distance": 5025.7,
-          "gear_reference": 4
-        },
-        {
-          "number": "15",
-          "name": "Curva 15",
-          "start_distance": 5126.4,
-          "apex_distance": 5201.4,
-          "end_distance": 5286.4,
-          "gear_reference": 4
-        },
-        {
-          "number": "16",
-          "name": "Curva 16",
-          "start_distance": 5841.3,
-          "apex_distance": 5916.3,
-          "end_distance": 6001.3,
-          "gear_reference": 8
-        },
-        {
-          "number": "17",
-          "name": "Curva 17",
-          "start_distance": 6128.8,
-          "apex_distance": 6203.8,
-          "end_distance": 6288.8,
+          "number": "16-17",
+          "name": "Blanchimont",
+          "start_distance": 5820.0,
+          "apex_distance": 6150.0,
+          "end_distance": 6350.0,
           "gear_reference": 8
         },
         {
           "number": "18-19",
           "name": "Bus Stop Chicane",
-          "start_distance": 6616.1,
-          "apex_distance": 6738.3,
-          "end_distance": 6888.3,
+          "start_distance": 6580.0,
+          "apex_distance": 6740.0,
+          "end_distance": 6900.0,
           "gear_reference": 2
         }
       ]

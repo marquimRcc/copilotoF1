@@ -532,6 +532,7 @@ class F1HudOverlay:
             (10, "Spa-Francorchamps (Bélgica)"),
             (3, "Sakhir (Bahrein)"),
             (4, "Catalunya (Espanha)"),
+            (6, "Montreal (Canadá)"),
         ]
         for tid, tname in main_tracks:
             track_menu.add_command(label=tname, command=lambda t=tid: self.set_track(t, manual=True))

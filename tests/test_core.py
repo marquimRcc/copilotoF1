@@ -145,6 +145,24 @@ class TestCoreComponents(unittest.TestCase):
         self.assertEqual(corner.number, "1-2")
         self.assertTrue(d_brake > 100.0, "Deve calcular distância positiva até a C1 após cruzar a linha.")
 
+    def test_calibrated_circuits_integrity(self):
+        """Garante a integridade e ausência de sobreposições nos circuitos prioritários."""
+        priority_track_ids = [16, 11, 17, 7, 10, 3, 4, 6]
+        for tid in priority_track_ids:
+            c = get_circuit_by_track_id(tid)
+            self.assertIsNotNone(c, f"Circuito ID {tid} não encontrado.")
+            self.assertTrue(len(c.corners) >= 6, f"Circuito {c.name} deve ter curvas cadastradas.")
+            
+            for cur in c.corners:
+                self.assertTrue(cur.start_distance < cur.apex_distance < cur.end_distance, f"Distâncias inválidas em {cur.number} ({c.name})")
+                self.assertIsNotNone(cur.gear_reference, f"Marcha ausente em {cur.number} ({c.name})")
+                self.assertTrue(1 <= cur.gear_reference <= 8, f"Marcha inválida em {cur.number} ({c.name})")
+
+            for i in range(len(c.corners) - 1):
+                c1 = c.corners[i]
+                c2 = c.corners[i+1]
+                self.assertTrue(c1.end_distance <= c2.start_distance + 1.0, f"Sobreposição entre {c1.number} e {c2.number} em {c.name}")
+
 
 if __name__ == "__main__":
     unittest.main()
