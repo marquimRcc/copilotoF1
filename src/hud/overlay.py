@@ -319,6 +319,8 @@ class F1HudOverlay:
         self.f1_top.pack(fill=tk.X)
         self.l1_lbl_track = tk.Label(self.f1_top, text="MONZA • AGUARDANDO", font=("Helvetica", 10, "bold"), fg=t["reta"]["top"], bg=t["reta"]["bg"])
         self.l1_lbl_track.pack(side=tk.LEFT)
+        self.l1_lbl_best = tk.Label(self.f1_top, text="BEST: --:--.---", font=("Courier", 10, "bold"), fg=t["reta"]["sub"], bg=t["reta"]["bg"])
+        self.l1_lbl_best.pack(side=tk.LEFT, expand=True)
         self.l1_lbl_dist = tk.Label(self.f1_top, text="--", font=("Helvetica", 10, "bold"), fg=t["reta"]["top"], bg=t["reta"]["bg"])
         self.l1_lbl_dist.pack(side=tk.RIGHT)
 
@@ -356,6 +358,8 @@ class F1HudOverlay:
         self.f2_top.pack(fill=tk.X)
         self.l2_lbl_corner = tk.Label(self.f2_top, text="C1: VARIANTE RETTIFILO", font=("Helvetica", 10, "bold"), fg=t["text"], bg=t["bg"])
         self.l2_lbl_corner.pack(side=tk.LEFT)
+        self.l2_lbl_best = tk.Label(self.f2_top, text="BEST: --:--.---", font=("Courier", 10, "bold"), fg=t["accent"], bg=t["bg"])
+        self.l2_lbl_best.pack(side=tk.LEFT, expand=True)
         self.l2_lbl_dist = tk.Label(self.f2_top, text="120m", font=("Courier", 10, "bold"), fg=t["muted"], bg=t["bg"])
         self.l2_lbl_dist.pack(side=tk.RIGHT)
 
@@ -390,6 +394,8 @@ class F1HudOverlay:
         self.f3_top.pack(fill=tk.X, pady=(0, 4))
         self.l3_lbl_track = tk.Label(self.f3_top, text="MONZA • CURVA 1", font=("Helvetica", 10, "bold"), fg=t["text"], bg=t["bg"])
         self.l3_lbl_track.pack(side=tk.LEFT)
+        self.l3_lbl_best = tk.Label(self.f3_top, text="BEST: --:--.---", font=("Courier", 10, "bold"), fg=t["accent"], bg=t["bg"])
+        self.l3_lbl_best.pack(side=tk.LEFT, expand=True)
         self.l3_badge_status = tk.Label(self.f3_top, text="RETA", font=("Helvetica", 8, "bold"), fg=t["muted"], bg=t["track_bg"], padx=6, pady=1)
         self.l3_badge_status.pack(side=tk.RIGHT)
 
@@ -571,6 +577,14 @@ class F1HudOverlay:
         )
         self.systray.start()
 
+    @staticmethod
+    def _format_lap_time(ms: Optional[int]) -> str:
+        if not ms or ms <= 0:
+            return "BEST: --:--.---"
+        minutes = ms // 60000
+        seconds = (ms % 60000) / 1000.0
+        return f"BEST: {minutes:02d}:{seconds:06.3f}"
+
     # -------------------------------------------------------------
     # LOOP PRINCIPAL DE RENDERIZAÇÃO (DIRTY CHECKING / DIFFING)
     # -------------------------------------------------------------
@@ -590,12 +604,14 @@ class F1HudOverlay:
         gear_str = "R" if gear == -1 else ("N" if gear == 0 else str(gear))
         corner_num = f"C{next_corner.number}" if next_corner else "RETA"
         corner_name = next_corner.name if next_corner else "RETA DOS BOXES"
+        target_gear = next_corner.gear_reference if (next_corner and next_corner.gear_reference) else 3
         dist_str = f"{dist_to_brake:.0f}m" if dist_to_brake < 800 else "--"
+        best_str = self._format_lap_time(snap.get("best_session_lap_ms"))
 
         # Dirty-check chave para Layout 1
         if self.active_layout == 1:
             color_cfg = theme.get(state, theme["reta"])
-            l1_key = (state, speed, gear, dist_str, corner_num, self.active_theme)
+            l1_key = (state, speed, gear, dist_str, corner_num, best_str, self.active_theme)
             if self._last_rendered.get("l1") != l1_key:
                 self._last_rendered["l1"] = l1_key
                 self.f1.configure(bg=color_cfg["bg"])
@@ -604,16 +620,17 @@ class F1HudOverlay:
                 self.f1_bottom.configure(bg=color_cfg["bg"])
 
                 self.l1_lbl_track.config(text=f"{snap['track_name'].upper()} • {corner_num}", fg=color_cfg["top"], bg=color_cfg["bg"])
+                self.l1_lbl_best.config(text=best_str, fg=color_cfg["sub"], bg=color_cfg["bg"])
                 self.l1_lbl_dist.config(text=dist_str, fg=color_cfg["top"], bg=color_cfg["bg"])
                 self.l1_lbl_speed.config(text=f"{speed} km/h", fg=color_cfg["top"], bg=color_cfg["bg"])
                 self.l1_lbl_gear.config(text=f"MARCHA: {gear_str}", fg=color_cfg["top"], bg=color_cfg["bg"])
 
                 state_labels = {
-                    "reta": ("RETA", "VELOCIDADE MÁXIMA"),
-                    "preparo": ("PREPARAÇÃO", f"FREAR EM {dist_str}"),
-                    "freia": ("FREIA AGORA!", f"ALVO: {gear_str}ª MARCHA"),
-                    "freia_pulse": ("FREIA AGORA!", f"ALVO: {gear_str}ª MARCHA"),
-                    "apice": ("ÁPICE / CONTORNO", "MANTENHA A TRAJETÓRIA"),
+                    "reta": ("RETA", f"FRENAGEM EM {dist_str}" if dist_to_brake < 800 else "ACELERAÇÃO PLENA"),
+                    "preparo": (f"PREPARAR! ({dist_str})", f"ALVO: {target_gear}ª MARCHA"),
+                    "freia": ("FREIA AGORA!", f"REDUZIR P/ {target_gear}ª MARCHA"),
+                    "freia_pulse": ("FREIA AGORA!", f"REDUZIR P/ {target_gear}ª MARCHA"),
+                    "apice": ("ÁPICE / CONTORNO", "SOLTAR FREIO / VIRAR"),
                     "acelera": ("ACELERAÇÃO!", "TRACIONAR NA SAÍDA"),
                     "lancamento": ("VOLTA DE LANÇAMENTO", f"LARGADA EM {dist_str}"),
                 }
@@ -623,13 +640,17 @@ class F1HudOverlay:
 
         # Dirty-check chave para Layout 2
         elif self.active_layout == 2:
-            l2_key = (state, speed, gear, dist_str, corner_num, self.active_theme)
+            l2_key = (state, speed, gear, dist_str, corner_num, best_str, self.active_theme)
             if self._last_rendered.get("l2") != l2_key:
                 self._last_rendered["l2"] = l2_key
                 self.l2_lbl_corner.config(text=f"{corner_num}: {corner_name}".upper())
+                self.l2_lbl_best.config(text=best_str, fg=theme["accent"], bg=theme["bg"])
                 self.l2_lbl_dist.config(text=dist_str if state in ("reta", "preparo") else "PONTO ZERO")
                 self.l2_lbl_gear_val.config(text=f"MARCHA: {gear_str}")
                 self.l2_lbl_speed_val.config(text=f"{speed} km/h")
+
+                target_speed = CornerStateMachine.estimate_apex_speed(next_corner) if next_corner else 120
+                self.l2_lbl_apex_target.config(text=f"ALVO: {target_gear}ª ({target_speed} km/h)")
 
                 # LEDs superiores
                 off = theme["track_bg"]
@@ -653,23 +674,23 @@ class F1HudOverlay:
                     bar_color = "#f59e0b"
                     pct = max(0.0, min(1.0, 1.0 - (dist_to_brake / 500.0)))
                 elif state == "reta":
-                    self.l2_lbl_action.config(text="ACELERAR", fg=theme["muted"])
+                    self.l2_lbl_action.config(text=f"FRENAGEM EM {dist_str}" if dist_to_brake < 800 else "ACELERAR", fg=theme["muted"])
                     bar_color = theme["accent"]
                     pct = 0.0
                 elif state == "preparo":
-                    self.l2_lbl_action.config(text="PREPARAR", fg="#f59e0b")
+                    self.l2_lbl_action.config(text=f"PREPARAR FREADA ({dist_str})", fg="#f59e0b")
                     bar_color = "#f59e0b"
-                    pct = max(0.0, min(1.0, 1.0 - (dist_to_brake / 75.0)))
+                    pct = max(0.0, min(1.0, 1.0 - (dist_to_brake / 70.0)))
                 elif "freia" in state:
-                    self.l2_lbl_action.config(text="FREAR", fg="#ef4444")
+                    self.l2_lbl_action.config(text=f"100% FREIO! ({target_gear}ª M)", fg="#ef4444")
                     bar_color = "#ef4444"
                     pct = 1.0
                 elif state == "apice":
-                    self.l2_lbl_action.config(text="CONTORNO", fg="#38bdf8")
+                    self.l2_lbl_action.config(text="CONTORNO / ÁPICE", fg="#38bdf8")
                     bar_color = "#38bdf8"
                     pct = 0.5
                 else:
-                    self.l2_lbl_action.config(text="RETOMADA", fg="#22c55e")
+                    self.l2_lbl_action.config(text="TRACIONAR PROGRESSIVO", fg="#22c55e")
                     bar_color = "#22c55e"
                     pct = 1.0
 
@@ -682,37 +703,43 @@ class F1HudOverlay:
             throttle = snap["throttle"]
             brake = snap["brake"]
             feedback = snap["last_lap_feedback"]
-            l3_key = (state, gear_str, corner_num, int(throttle * 50), int(brake * 50), feedback, self.active_theme)
+            l3_key = (state, gear_str, corner_num, int(throttle * 50), int(brake * 50), feedback, best_str, self.active_theme)
 
             if self._last_rendered.get("l3") != l3_key:
                 self._last_rendered["l3"] = l3_key
                 self.l3_lbl_track.config(text=f"{snap['track_name'].upper()} • {corner_num}")
+                self.l3_lbl_best.config(text=best_str, fg=theme["accent"], bg=theme["bg"])
                 self.l3_lbl_gear_big.config(text=gear_str)
 
                 if state == "lancamento":
                     self.l3_badge_status.config(text="LANÇAMENTO", bg="#78350f", fg="#fef08a")
                     self.l3_lbl_action.config(text=f"LARGADA EM {dist_str}", fg="#f59e0b")
-                    self.l3_lbl_tip.config(text="Prepare a saída da última curva para abrir a volta rápida")
+                    self.l3_lbl_tip.config(text="Volta de lançamento: aqueça pneus e abra traçado na reta")
                 elif state == "reta":
                     self.l3_badge_status.config(text="RETA", bg=theme["track_bg"], fg=theme["muted"])
                     self.l3_lbl_action.config(text="100% ACELERADOR", fg=theme["text"])
-                    self.l3_lbl_tip.config(text=f"Próxima freada em {dist_str}" if dist_to_brake < 800 else feedback)
+                    if dist_to_brake < 800:
+                        self.l3_lbl_tip.config(text=f"Próxima frenagem para {corner_num} em {dist_str} (Alvo: {target_gear}ª)")
+                    elif feedback:
+                        self.l3_lbl_tip.config(text=feedback)
+                    else:
+                        self.l3_lbl_tip.config(text=f"Traçado livre • Foco na entrada de {corner_num} ({corner_name})")
                 elif state == "preparo":
                     self.l3_badge_status.config(text="APROXIMAÇÃO", bg="#78350f", fg="#fef08a")
                     self.l3_lbl_action.config(text=f"PREPARAR FREADA ({dist_str})", fg="#f59e0b")
-                    self.l3_lbl_tip.config(text=f"Reduzir para {gear_str}ª marcha no ápice")
+                    self.l3_lbl_tip.config(text=f"Alinhar volante e reduzir para {target_gear}ª marcha no ápice")
                 elif "freia" in state:
                     self.l3_badge_status.config(text="FRENAGEM", bg="#7f1d1d", fg="#fecaca")
-                    self.l3_lbl_action.config(text="100% FREIO", fg="#ef4444")
-                    self.l3_lbl_tip.config(text="Frenagem em linha reta, alivie no contorno")
+                    self.l3_lbl_action.config(text=f"100% FREIO AGORA!", fg="#ef4444")
+                    self.l3_lbl_tip.config(text=f"Frenagem forte em linha reta • Engatar {target_gear}ª marcha")
                 elif state == "apice":
                     self.l3_badge_status.config(text="ÁPICE", bg="#075985", fg="#bae6fd")
                     self.l3_lbl_action.config(text="SOLTAR FREIO / VIRAR", fg="#38bdf8")
-                    self.l3_lbl_tip.config(text="Aponte a frente do carro para a zebra interna")
+                    self.l3_lbl_tip.config(text="Mire a zebra interna e inicie a retomada suave")
                 else:
                     self.l3_badge_status.config(text="SAÍDA", bg="#14532d", fg="#bbf7d0")
                     self.l3_lbl_action.config(text="TRACIONAR PROGRESSIVO", fg="#22c55e")
-                    self.l3_lbl_tip.config(text=feedback)
+                    self.l3_lbl_tip.config(text=feedback if feedback else f"Abra o volante e aplique potência máxima na saída da {corner_num}")
 
                 # Atualiza coordenadas das barras de freio e acelerador sem delete("all")
                 brake_px = int(max(0.0, min(1.0, brake)) * 340)

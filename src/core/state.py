@@ -122,18 +122,22 @@ THEMES: Dict[str, Dict] = {
 class CornerStateMachine:
     """Máquina de estados cinemática de frenagem e contorno com aritmética modular."""
 
-    # Desaceleração média de frenagem em F1 (~4.3G = 42 m/s²)
-    DECEL_BRAKE_MS2 = 42.0
+    # Desaceleração prática média combinada aerodinâmica + mecânica em F1 (~2.8G a 3.2G = 28 m/s²)
+    DECEL_BRAKE_MS2 = 28.0
 
     @classmethod
     def calculate_braking_distance(cls, current_speed_kmh: int, target_speed_kmh: int) -> float:
-        """Calcula a distância ideal de frenagem via cinemática: d = (v² - v_apex²) / (2*a)."""
+        """Calcula a distância ideal e segura de frenagem: d = (v² - v_apex²) / (2*a) + margem de reação humana."""
         v1 = max(0.0, current_speed_kmh / 3.6)
         v2 = max(0.0, target_speed_kmh / 3.6)
         if v1 <= v2:
             return 25.0
-        dist = (v1**2 - v2**2) / (2.0 * cls.DECEL_BRAKE_MS2)
-        return max(25.0, min(dist, 250.0))
+        # Distância física pura de desaceleração
+        phys_dist = (v1**2 - v2**2) / (2.0 * cls.DECEL_BRAKE_MS2)
+        # Margem de reação humana (~0.25s) e segurança de posicionamento
+        reaction_margin = (v1 * 0.25) + 10.0
+        total_dist = phys_dist + reaction_margin
+        return max(30.0, min(total_dist, 250.0))
 
     @classmethod
     def estimate_apex_speed(cls, corner: CornerZone) -> int:
@@ -151,15 +155,14 @@ class CornerStateMachine:
         current_lap_time_ms: int = 1000,
         driver_status: int = 1,
     ) -> tuple[str, Optional[CornerZone], float, float]:
-        """Calcula o estado atual da curva, próxima curva e distâncias modulares."""
+        """Calcula com precisão a máquina de estados de curva e ponto de frenagem."""
         if not circuit or not circuit.corners:
             return "reta", None, 999.0, 999.0
 
+        track_len = max(1000.0, float(circuit.length))
         first_corner = circuit.corners[0]
 
-        # 0. Trava de Volta de Lançamento / Aquecimento (Out-Lap / Grid / Garagem)
-        # O F1 envia lap_distance negativa (ex: -450m a -0.1m) ou cronômetro em 0 na tomada de tempo
-        track_len = max(1000.0, float(circuit.length)) if (circuit and circuit.length) else 4300.0
+        # 0. Trava de Volta de Lançamento / Grid Parado / Boxes
         is_out_lap = (
             lap_distance < 0.0
             or driver_status in (0, 3)
@@ -175,71 +178,64 @@ class CornerStateMachine:
             dist_to_apex = dist_to_start_line + first_corner.apex_distance
             return "lancamento", first_corner, dist_to_start_line, dist_to_apex
 
-        track_length = max(1000.0, float(circuit.length))
-        norm_dist = lap_distance % track_length
+        norm_dist = lap_distance % track_len
 
-        # 1. Avalia se está dentro de alguma curva ativa (janela de ápice, aceleração ou frenagem imediata)
+        # 1. Verifica se o carro está dentro de alguma curva ativa (entre start e end)
+        active_corner: Optional[CornerZone] = None
         for corner in circuit.corners:
-            c_start = corner.start_distance
-            c_apex = corner.apex_distance
-            c_end = corner.end_distance
+            corner_len = (corner.end_distance - corner.start_distance) % track_len
+            progress_in_corner = (norm_dist - corner.start_distance) % track_len
+            if progress_in_corner <= corner_len:
+                active_corner = corner
+                break
 
-            # Distância modular do carro até o ápice
-            dist_to_apex = (c_apex - norm_dist) % track_length
-            if dist_to_apex > (track_length / 2):
-                dist_to_apex -= track_length
+        if active_corner:
+            fwd_apex = (active_corner.apex_distance - norm_dist) % track_len
+            past_apex = (norm_dist - active_corner.apex_distance) % track_len
 
-            # Distância modular do carro até o início
-            dist_to_start = (c_start - norm_dist) % track_length
-            if dist_to_start > (track_length / 2):
-                dist_to_start -= track_length
-
-            # Distância modular do carro até o fim
-            dist_to_end = (c_end - norm_dist) % track_length
-            if dist_to_end > (track_length / 2):
-                dist_to_end -= track_length
-
-            # Zona de Ápice: [-25m a +25m em torno de c_apex]
-            if -25.0 <= dist_to_apex <= 25.0:
-                return "apice", corner, 0.0, max(0.0, dist_to_apex)
+            # Zona de Ápice: [-25m a +25m em torno de apex_distance]
+            if fwd_apex <= 25.0 or past_apex <= 25.0:
+                return "apice", active_corner, 0.0, max(0.0, fwd_apex)
 
             # Zona de Aceleração / Saída: após o ápice até o fim da curva
-            if dist_to_apex < -25.0 and dist_to_end > -15.0:
-                return "acelera", corner, 0.0, 0.0
+            if past_apex > 25.0:
+                return "acelera", active_corner, 0.0, 0.0
 
-            # Cálculo de frenagem dinâmico
-            target_speed = cls.estimate_apex_speed(corner)
+            # Entrada da curva antes do ápice: frenagem imediata
+            target_speed = cls.estimate_apex_speed(active_corner)
             brake_dist = cls.calculate_braking_distance(speed_kmh, target_speed)
-            dynamic_brake_point = c_apex - brake_dist
+            if fwd_apex <= (brake_dist + 15.0):
+                return "freia", active_corner, 0.0, fwd_apex
 
-            dist_to_brake_point = (dynamic_brake_point - norm_dist) % track_length
-            if dist_to_brake_point > (track_length / 2):
-                dist_to_brake_point -= track_length
-
-            # Zona de FRENAGEM: passou do ponto de freio e ainda não chegou no ápice
-            if dist_to_brake_point <= 5.0 and dist_to_apex > 20.0:
-                return "freia", corner, 0.0, max(0.0, dist_to_apex)
-
-        # 2. Se não está dentro de nenhuma curva ativa, busca a PRÓXIMA curva à frente
+        # 2. Se não está em nenhuma curva ativa, identifica a PRÓXIMA curva à frente
         closest_corner: Optional[CornerZone] = None
-        min_forward_dist = float("inf")
+        min_forward_apex = float("inf")
 
         for corner in circuit.corners:
-            target_speed = cls.estimate_apex_speed(corner)
-            brake_dist = cls.calculate_braking_distance(speed_kmh, target_speed)
-            dynamic_brake_point = corner.apex_distance - brake_dist
-
-            forward_dist = (dynamic_brake_point - norm_dist) % track_length
-            if forward_dist < min_forward_dist:
-                min_forward_dist = forward_dist
+            fwd_apex = (corner.apex_distance - norm_dist) % track_len
+            if fwd_apex < min_forward_apex:
+                min_forward_apex = fwd_apex
                 closest_corner = corner
 
-        if closest_corner and min_forward_dist <= 75.0:
-            apex_forward = (closest_corner.apex_distance - norm_dist) % track_length
-            return "preparo", closest_corner, max(0.0, min_forward_dist), apex_forward
+        if not closest_corner:
+            closest_corner = first_corner
+            min_forward_apex = (first_corner.apex_distance - norm_dist) % track_len
 
-        apex_forward = (closest_corner.apex_distance - norm_dist) % track_length if closest_corner else 999.0
-        return "reta", closest_corner, max(0.0, min_forward_dist), apex_forward
+        # Distância até o ponto dinâmico de frenagem
+        target_speed = cls.estimate_apex_speed(closest_corner)
+        brake_dist = cls.calculate_braking_distance(speed_kmh, target_speed)
+        dist_to_brake = max(0.0, min_forward_apex - brake_dist)
+
+        # Zona de Frenagem Crítica
+        if min_forward_apex <= (brake_dist + 5.0):
+            return "freia", closest_corner, 0.0, min_forward_apex
+
+        # Zona de Preparação / Alerta Amarelo com antecedência confortável (até 70m antes da freada)
+        if dist_to_brake <= 70.0:
+            return "preparo", closest_corner, dist_to_brake, min_forward_apex
+
+        # Reta plena
+        return "reta", closest_corner, dist_to_brake, min_forward_apex
 
 
 class AutoCornerLearner:
@@ -343,7 +339,7 @@ class TelemetryState:
 
         # Pós-volta e PB
         self.best_session_lap_ms: Optional[int] = None
-        self.last_lap_feedback: str = "Aguardando 1ª volta completa..."
+        self.last_lap_feedback: str = ""
 
         # UI e Temas
         self.active_layout: int = initial_layout
@@ -385,6 +381,15 @@ class TelemetryState:
             self.last_lap_time_ms = last_time_ms
             self.is_lap_valid = is_valid
             self.driver_status = driver_status
+
+            # Mantém máquina de estados atualizada em sincronia com o avanço da volta
+            st, corner, d_brake, d_apex = CornerStateMachine.update(
+                self.lap_distance, self.speed, self.circuit, self.lap_time_ms, self.driver_status
+            )
+            self.current_state = st
+            self.next_corner = corner
+            self.dist_to_brake = d_brake
+            self.dist_to_apex = d_apex
 
     def set_session_info(self, track_id: int, track_name: str, track_length: int):
         with self._lock:

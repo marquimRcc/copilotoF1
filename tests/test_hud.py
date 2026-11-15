@@ -115,5 +115,23 @@ class TestHudStateMachine(unittest.TestCase):
         self.assertIn("Interlagos", self.hud.track_name)
 
 
+    def test_best_session_lap_display(self):
+        """Valida que o tempo da melhor volta da sessão é formatado e exibido permanentemente no topo."""
+        # Sem voltas completas
+        self.hud.state.best_session_lap_ms = None
+        self.assertEqual(self.hud._format_lap_time(None), "BEST: --:--.---")
+        self.assertEqual(self.hud._format_lap_time(0), "BEST: --:--.---")
+
+        # Com melhor volta registrada (1m 12s 450ms = 72450 ms)
+        self.hud.state.best_session_lap_ms = 72450
+        formatted = self.hud._format_lap_time(72450)
+        self.assertEqual(formatted, "BEST: 01:12.450")
+
+        # Garante que os widgets de título central existem em todos os layouts
+        self.assertIsNotNone(self.hud.l1_lbl_best)
+        self.assertIsNotNone(self.hud.l2_lbl_best)
+        self.assertIsNotNone(self.hud.l3_lbl_best)
+
+
 if __name__ == "__main__":
     unittest.main()

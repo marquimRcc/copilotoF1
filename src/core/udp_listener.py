@@ -111,6 +111,10 @@ class F1UdpListener:
                 with self._lock:
                     # 1. Conclusão de volta (lap_num incrementou)
                     if self.active_lap_num > 0 and lap.current_lap_num > self.active_lap_num:
+                        if lap.last_lap_time_ms > 0 and not self.last_lap_invalid:
+                            if self.state.best_session_lap_ms is None or lap.last_lap_time_ms < self.state.best_session_lap_ms:
+                                self.state.best_session_lap_ms = lap.last_lap_time_ms
+
                         if self.record_csv and self.recorder and len(self.lap_samples) >= 30 and lap.last_lap_time_ms > 0:
                             self.recorder.enqueue_lap(
                                 samples=self.lap_samples,
