@@ -155,6 +155,132 @@ class TestHudStateMachine(unittest.TestCase):
         self.assertIsNotNone(self.hud.l2_lbl_best)
         self.assertIsNotNone(self.hud.l3_lbl_best)
 
+    def test_interlagos_full_lap_transitions(self):
+        """Valida transição contínua e sem sobressaltos em todas as curvas de Interlagos."""
+        interlagos = get_circuit_by_track_id(16)
+        self.hud.state.circuit = interlagos
+        self.hud.state.lap_time_ms = 15000
+        self.hud.state.speed = 280
+        self.hud.state.driver_status = 1
+
+        # C1-2: S do Senna
+        self.hud.state.lap_distance = 150.0
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "preparo")
+        self.assertEqual(self.hud.next_corner.number, "1-2")
+
+        self.hud.state.lap_distance = 280.0
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "freia")
+
+        self.hud.state.lap_distance = 380.0
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "apice")
+        self.assertEqual(self.hud.dist_to_apex, 0.0)
+
+        self.hud.state.lap_distance = 550.0
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "acelera")
+
+        # C3: Curva do Sol (Pé no fundo / Alta velocidade - NUNCA deve mandar frear!)
+        self.hud.state.lap_distance = 800.0
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "acelera", "Curva do Sol deve ser contornada de pé no fundo!")
+        self.assertEqual(self.hud.next_corner.number, "3")
+
+        # C4: Descida do Lago (Fim da Reta Oposta)
+        self.hud.state.lap_distance = 1250.0
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "reta")
+        self.assertEqual(self.hud.next_corner.number, "4")
+
+        self.hud.state.lap_distance = 1420.0
+        self.hud._update_corner_logic()
+        self.assertIn(self.hud.current_state, ("preparo", "freia"))
+
+        self.hud.state.lap_distance = 1550.0
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "freia")
+
+        self.hud.state.lap_distance = 1650.0
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "apice")
+
+        # C12: Junção e Reta dos Boxes
+        self.hud.state.lap_distance = 3650.0
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "freia")
+        self.assertEqual(self.hud.next_corner.number, "12")
+
+        self.hud.state.lap_distance = 3740.0
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "apice")
+
+        # Subida dos Boxes apontando para o S do Senna
+        self.hud.state.lap_distance = 4100.0
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "reta")
+        self.assertEqual(self.hud.next_corner.number, "1-2")
+        self.assertTrue(self.hud.dist_to_brake > 0)
+
+    def test_braking_hysteresis_stability(self):
+        """Garante que a frenagem não desative prematuramente quando o piloto reduz a velocidade."""
+        interlagos = get_circuit_by_track_id(16)
+        self.hud.state.circuit = interlagos
+        self.hud.state.lap_time_ms = 20000
+
+        # Carro a 310 km/h entrando na freada da Descida do Lago (1520m)
+        self.hud.state.lap_distance = 1520.0
+        self.hud.state.speed = 310
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "freia")
+
+        # Piloto pisa fundo no freio, velocidade cai progressivamente
+        for spd in (250, 200, 160, 120):
+            self.hud.state.lap_distance = 1580.0
+            self.hud.state.speed = spd
+            self.hud._update_corner_logic()
+            self.assertEqual(self.hud.current_state, "freia", f"A {spd} km/h o copiloto deve manter comando de FREIO até o ápice!")
+
+        # Chegando no ápice (1650m)
+        self.hud.state.lap_distance = 1650.0
+        self.hud.state.speed = 130
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "apice")
+        self.assertEqual(self.hud.dist_to_apex, 0.0)
+
+    def test_time_trial_restart_recovery(self):
+        """Valida recuperação imediata após 'Reiniciar Volta' no Time Trial sem travar."""
+        interlagos = get_circuit_by_track_id(16)
+        self.hud.state.circuit = interlagos
+        self.hud.state.best_session_lap_ms = 72500
+
+        # 1. Usuário clica em 'Reiniciar Volta': F1 25 spawna o carro a 2800m com tempo zerado
+        self.hud.state.lap_distance = 2800.0
+        self.hud.state.lap_time_ms = 0
+        self.hud.state.driver_status = 3  # Out-lap no F1 25
+        self.hud.state.speed = 150
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "lancamento")
+        self.assertEqual(self.hud.state.best_session_lap_ms, 72500)
+
+        # 2. Carro cruza a linha de chegada (distância = 5m, cronômetro inicia em 80ms)
+        self.hud.state.lap_distance = 5.0
+        self.hud.state.lap_time_ms = 80
+        self.hud.state.driver_status = 3  # Mesmo que driver_status ainda seja 3 temporariamente!
+        self.hud.state.speed = 285
+        self.hud._update_corner_logic()
+
+        # O copiloto DEVE destravar imediatamente ao cruzar a linha e mirar o S do Senna
+        self.assertEqual(self.hud.current_state, "reta")
+        self.assertEqual(self.hud.next_corner.number, "1-2")
+        self.assertEqual(self.hud.state.best_session_lap_ms, 72500)
+
+        # 3. Avança para a freada do S do Senna
+        self.hud.state.lap_distance = 220.0
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "freia")
+
 
 if __name__ == "__main__":
     unittest.main()

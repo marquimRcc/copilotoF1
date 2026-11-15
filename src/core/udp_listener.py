@@ -104,17 +104,18 @@ class F1UdpListener:
                 is_flying_lap = (
                     lap.lap_distance >= 0.0
                     and lap.current_lap_time_ms > 0
-                    and lap.driver_status not in (0, 2, 3)
+                    and lap.driver_status != 2
                 )
 
                 # Detecção de transição de volta
                 with self._lock:
+                    # Captura imediata da melhor volta se disponível
+                    if lap.last_lap_time_ms > 0 and not lap.current_lap_invalid:
+                        if self.state.best_session_lap_ms is None or lap.last_lap_time_ms < self.state.best_session_lap_ms:
+                            self.state.best_session_lap_ms = lap.last_lap_time_ms
+
                     # 1. Conclusão de volta (lap_num incrementou)
                     if self.active_lap_num > 0 and lap.current_lap_num > self.active_lap_num:
-                        if lap.last_lap_time_ms > 0 and not self.last_lap_invalid:
-                            if self.state.best_session_lap_ms is None or lap.last_lap_time_ms < self.state.best_session_lap_ms:
-                                self.state.best_session_lap_ms = lap.last_lap_time_ms
-
                         if self.record_csv and self.recorder and len(self.lap_samples) >= 30 and lap.last_lap_time_ms > 0:
                             self.recorder.enqueue_lap(
                                 samples=self.lap_samples,
@@ -138,8 +139,8 @@ class F1UdpListener:
                         self.lap_samples.clear()
                         self.active_lap_num = 0
 
-                    # 3. Descarta se reiniciou a volta na mesma numeração (cronômetro zerado no meio da mesma volta)
-                    elif self.active_lap_num == lap.current_lap_num and lap.current_lap_time_ms == 0 and len(self.lap_samples) > 0:
+                    # 3. Descarta se reiniciou a volta (cronômetro zerado no meio da volta ou Time Trial reset)
+                    elif lap.current_lap_time_ms == 0 and len(self.lap_samples) > 0:
                         self.lap_samples.clear()
                         self.active_lap_num = 0
 

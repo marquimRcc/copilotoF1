@@ -218,7 +218,7 @@
       "length": 4309,
       "corners": [
         {"number": "1-2", "name": "S do Senna", "start_distance": 120.0, "apex_distance": 380.0, "end_distance": 620.0, "gear_reference": 3},
-        {"number": "3", "name": "Curva do Sol", "start_distance": 680.0, "apex_distance": 920.0, "end_distance": 1100.0, "gear_reference": 6},
+        {"number": "3", "name": "Curva do Sol", "start_distance": 680.0, "apex_distance": 920.0, "end_distance": 1100.0, "gear_reference": 8},
         {"number": "4", "name": "Descida do Lago", "start_distance": 1420.0, "apex_distance": 1650.0, "end_distance": 1850.0, "gear_reference": 4},
         {"number": "6-7", "name": "Ferradura / Laranjinha", "start_distance": 2080.0, "apex_distance": 2350.0, "end_distance": 2550.0, "gear_reference": 5},
         {"number": "8", "name": "Pinheirinho", "start_distance": 2600.0, "apex_distance": 2780.0, "end_distance": 2920.0, "gear_reference": 2},
