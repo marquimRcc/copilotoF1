@@ -206,13 +206,13 @@ class TestHudStateMachine(unittest.TestCase):
         self.hud._update_corner_logic()
         self.assertEqual(self.hud.current_state, "apice")
 
-        # C12: Junção e Reta dos Boxes
-        self.hud.state.lap_distance = 3650.0
+        # C12: Junção e Reta dos Boxes (calibrado com telemetria real: 3150m a 3520m)
+        self.hud.state.lap_distance = 3220.0
         self.hud._update_corner_logic()
         self.assertEqual(self.hud.current_state, "freia")
         self.assertEqual(self.hud.next_corner.number, "12")
 
-        self.hud.state.lap_distance = 3740.0
+        self.hud.state.lap_distance = 3320.0
         self.hud._update_corner_logic()
         self.assertEqual(self.hud.current_state, "apice")
 

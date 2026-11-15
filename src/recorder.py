@@ -33,7 +33,7 @@ class F1TelemetryRecorder:
 
     @property
     def recorded_laps_count(self) -> int:
-        return 1 if self.recorder.best_lap_time_ms is not None else 0
+        return self.recorder.recorded_laps_count
 
     def start(self):
         """Inicia o listener UDP e mantém o loop em execução."""

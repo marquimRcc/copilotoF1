@@ -41,3 +41,12 @@ data/*.txt
 
 # Logs
 *.log
+
+.pytest_cache/
+data/*.csv
+data/*.txt
+data/*.log
+
+
+# Cache e telemetria local
+.fastf1_cache/

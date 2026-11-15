@@ -569,6 +569,17 @@ class F1HudOverlay:
         if not self.click_through_locked:
             self.context_menu.post(event.x_root, event.y_root)
 
+    def _run_on_ui_thread(self, func, *args, **kwargs):
+        """Executa callbacks vindos do Systray na thread principal do Tkinter."""
+        import threading
+        if threading.current_thread() is threading.main_thread():
+            func(*args, **kwargs)
+        elif self.running and self.root:
+            try:
+                self.root.after(0, lambda: func(*args, **kwargs))
+            except Exception:
+                pass
+
     def setup_systray(self):
         """Inicializa ícone de bandeja isolado em thread."""
         assets_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "assets"))
@@ -576,11 +587,11 @@ class F1HudOverlay:
 
         self.systray = SystrayController(
             icon_path=icon_path,
-            on_change_layout=self.set_layout,
-            on_change_theme=self.set_theme,
-            on_change_track=self.set_track,
-            on_toggle_click_through=self.toggle_click_through,
-            on_quit=self.on_close,
+            on_change_layout=lambda l: self._run_on_ui_thread(self.set_layout, l),
+            on_change_theme=lambda t: self._run_on_ui_thread(self.set_theme, t),
+            on_change_track=lambda tid, m: self._run_on_ui_thread(self.set_track, tid, m),
+            on_toggle_click_through=lambda locked: self._run_on_ui_thread(self.toggle_click_through, locked),
+            on_quit=lambda: self._run_on_ui_thread(self.on_close),
             initial_layout=self.active_layout,
             initial_theme=self.active_theme,
             initial_click_through=self.click_through_locked,

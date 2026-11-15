@@ -2,7 +2,6 @@
 
 import socket
 import threading
-import time
 from typing import Dict, List, Optional
 from packets.header import (
     PACKET_ID_CAR_TELEMETRY,
@@ -38,7 +37,6 @@ class F1UdpListener:
         self.running = False
         self.thread: Optional[threading.Thread] = None
 
-        # Controle de volta
         self.active_lap_num: int = 0
         self.last_lap_invalid: bool = False
         self.lap_samples: List[Dict] = []
@@ -48,7 +46,7 @@ class F1UdpListener:
         """Inicia o socket e a thread de escuta UDP."""
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.settimeout(0.5)  # Permite verificar self.running periodicamente
+        self.sock.settimeout(0.5)
         self.sock.bind((self.host, self.port))
         self.running = True
 
@@ -76,7 +74,6 @@ class F1UdpListener:
         if not header:
             return
 
-        # 1. Pacote de Sessão (ID 1)
         if header.packet_id == PACKET_ID_SESSION:
             session = parse_session_data(data, header)
             if session and self.state:
@@ -86,7 +83,6 @@ class F1UdpListener:
                     track_length=session.track_length,
                 )
 
-        # 2. Pacote de Volta (ID 2)
         elif header.packet_id == PACKET_ID_LAP_DATA:
             lap = parse_lap_data(data, header)
             if lap and self.state:
@@ -100,33 +96,39 @@ class F1UdpListener:
                     driver_status=lap.driver_status,
                 )
 
-                # Critério de volta rápida iniciada (destrava no metro 0 com cronômetro rodando)
                 is_flying_lap = (
                     lap.lap_distance >= 0.0
                     and lap.current_lap_time_ms > 0
                     and lap.driver_status != 2
                 )
 
-                # Detecção de transição de volta
                 with self._lock:
-                    # Captura imediata da melhor volta se disponível
-                    if lap.last_lap_time_ms > 0 and not lap.current_lap_invalid:
-                        if self.state.best_session_lap_ms is None or lap.last_lap_time_ms < self.state.best_session_lap_ms:
-                            self.state.best_session_lap_ms = lap.last_lap_time_ms
-
                     # 1. Conclusão de volta (lap_num incrementou)
                     if self.active_lap_num > 0 and lap.current_lap_num > self.active_lap_num:
-                        if self.record_csv and self.recorder and len(self.lap_samples) >= 30 and lap.last_lap_time_ms > 0:
+                        completed_lap_valid = not self.last_lap_invalid
+
+                        if completed_lap_valid and lap.last_lap_time_ms > 0:
+                            if (
+                                self.state.best_session_lap_ms is None
+                                or lap.last_lap_time_ms < self.state.best_session_lap_ms
+                            ):
+                                self.state.best_session_lap_ms = lap.last_lap_time_ms
+
+                        if (
+                            self.record_csv
+                            and self.recorder
+                            and len(self.lap_samples) >= 30
+                            and lap.last_lap_time_ms > 0
+                        ):
                             self.recorder.enqueue_lap(
                                 samples=self.lap_samples,
                                 lap_number=self.active_lap_num,
                                 lap_time_ms=lap.last_lap_time_ms,
-                                is_valid=not self.last_lap_invalid,
+                                is_valid=completed_lap_valid,
                                 track_id=self.state.track_id,
                                 track_name=self.state.track_name,
                             )
 
-                        # Finaliza aprendizado na volta 1 se aplicável
                         if self.active_lap_num == 1:
                             self.state.finalize_auto_learning()
 
@@ -134,22 +136,28 @@ class F1UdpListener:
                         self.active_lap_num = lap.current_lap_num if is_flying_lap else 0
                         self.last_lap_invalid = lap.current_lap_invalid
 
-                    # 2. Descarta volta se entrou nos boxes (In-Lap / retorno)
+                    # 2. Descarta volta se entrou nos boxes
                     elif lap.driver_status == 2:
                         self.lap_samples.clear()
                         self.active_lap_num = 0
+                        self.last_lap_invalid = False
 
-                    # 3. Descarta se reiniciou a volta (cronômetro zerado no meio da volta ou Time Trial reset)
+                    # 3. Descarta se reiniciou a volta no Time Trial
                     elif lap.current_lap_time_ms == 0 and len(self.lap_samples) > 0:
                         self.lap_samples.clear()
                         self.active_lap_num = 0
+                        self.last_lap_invalid = False
 
                     # 4. Início de nova volta rápida
                     elif is_flying_lap and self.active_lap_num == 0:
                         self.active_lap_num = lap.current_lap_num
                         self.last_lap_invalid = lap.current_lap_invalid
 
-        # 3. Pacote de Telemetria do Carro (ID 6)
+                    # 5. Durante a volta: propaga flag de volta inválida
+                    elif self.active_lap_num > 0 and lap.current_lap_num == self.active_lap_num:
+                        if lap.current_lap_invalid:
+                            self.last_lap_invalid = True
+
         elif header.packet_id == PACKET_ID_CAR_TELEMETRY:
             tel = parse_car_telemetry(data, header)
             if tel and self.state:
@@ -177,7 +185,7 @@ class F1UdpListener:
                             "engine_rpm": tel.engine_rpm,
                             "drs": tel.drs,
                             "lap_time_ms": self.state.lap_time_ms,
-                            "is_valid": 1 if self.state.is_lap_valid else 0,
+                            "is_valid": 0 if (not self.state.is_lap_valid or self.last_lap_invalid) else 1,
                         }
                         self.lap_samples.append(sample)
 
