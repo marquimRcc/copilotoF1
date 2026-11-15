@@ -32,7 +32,7 @@ def _registry_steam_path() -> Path | None:
     try:
         import winreg  # type: ignore
         for hive in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
-            for key_name in (r"Software\\Valve\\Steam", r"Software\\WOW6432Node\\Valve\\Steam"):
+            for key_name in (r"Software\Valve\Steam", r"Software\WOW6432Node\Valve\Steam"):
                 try:
                     with winreg.OpenKey(hive, key_name) as key:
                         value, _ = winreg.QueryValueEx(key, "SteamPath")
