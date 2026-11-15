@@ -1772,9 +1772,9 @@
           "number": "6-7",
           "name": "Ferradura / Laranjinha",
           "start_distance": 1880.0,
-          "apex_distance": 2080.0,
+          "apex_distance": 2060.0,
           "end_distance": 2180.0,
-          "gear_reference": 6
+          "gear_reference": 5
         },
         {
           "number": "8",
@@ -1798,7 +1798,7 @@
           "start_distance": 2900.0,
           "apex_distance": 3000.0,
           "end_distance": 3100.0,
-          "gear_reference": 5
+          "gear_reference": 8
         },
         {
           "number": "12",

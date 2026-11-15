@@ -126,8 +126,10 @@ class CornerStateMachine:
 
     # Desaceleração de F1 real com efeito solo e freios de carbono (~3.3G = 32.5 m/s²)
     DECEL_BRAKE_MS2 = 32.5
-    # Janela de alerta amarelo / preparação antes do ponto de frenagem (140 metros de antecedência)
-    PREPARATION_WINDOW_M = 140.0
+    # Janela de alerta amarelo / preparação antes do ponto de frenagem (160 metros)
+    PREPARATION_WINDOW_M = 160.0
+    # Margem proativa de antecipação humana para tempo de percepção e reação motora (~0.3s)
+    ANTICIPATION_BRAKE_M = 22.0
 
     @classmethod
     def calculate_braking_distance(cls, current_speed_kmh: int, target_speed_kmh: int) -> float:
@@ -141,9 +143,9 @@ class CornerStateMachine:
             return 20.0
 
         phys_dist = (v1**2 - v2**2) / (2.0 * cls.DECEL_BRAKE_MS2)
-        reaction_margin = (v1 * 0.35) + 8.0
+        reaction_margin = (v1 * 0.35) + cls.ANTICIPATION_BRAKE_M
         total_dist = phys_dist + reaction_margin
-        return max(20.0, min(total_dist, 250.0))
+        return max(20.0, min(total_dist, 260.0))
 
     @classmethod
     def estimate_apex_speed(cls, corner: CornerZone) -> int:
@@ -160,6 +162,7 @@ class CornerStateMachine:
         circuit: Optional[CircuitInfo],
         current_lap_time_ms: int = 1000,
         driver_status: int = 1,
+        previous_state: str = "reta",
     ) -> tuple[str, Optional[CornerZone], float, float]:
         """Calcula com precisão a máquina de estados de curva e ponto de frenagem."""
         if not circuit or not circuit.corners:
@@ -168,25 +171,19 @@ class CornerStateMachine:
         track_len = max(1000.0, float(circuit.length))
         first_corner = circuit.corners[0]
 
-        # 0. Trava de Volta de Lançamento / Grid Parado / Boxes
-        # Só ativa se o cronômetro estiver zerado (current_lap_time_ms == 0)
-        # Se o cronômetro já estiver rodando (> 0), a volta é ativa independente de driver_status
+        # 0. Trava de Volta de Lançamento / Out-Lap / Grid Parado / Boxes
+        # Só ativa se o cronômetro estiver zerado (current_lap_time_ms == 0) E
+        # o status for de out-lap/garagem/boxes, carro parado no grid ou antes da linha
         is_out_lap = (
             current_lap_time_ms == 0
             and (
-                lap_distance < 0.0
-                or driver_status in (0, 3)
-                or lap_distance > (track_len - 1600.0)
-                or lap_distance < 15.0
+                driver_status in (0, 2, 3)
+                or lap_distance < 0.0
+                or speed_kmh == 0
             )
         )
         if is_out_lap:
-            if lap_distance < 0.0:
-                dist_to_start_line = abs(lap_distance)
-            elif lap_distance > 500.0:
-                dist_to_start_line = max(0.0, track_len - lap_distance)
-            else:
-                dist_to_start_line = max(0.0, -lap_distance)
+            dist_to_start_line = abs(lap_distance) if lap_distance < 0.0 else max(0.0, track_len - lap_distance)
             dist_to_apex = dist_to_start_line + first_corner.apex_distance
             return "lancamento", first_corner, dist_to_start_line, dist_to_apex
 
@@ -221,6 +218,11 @@ class CornerStateMachine:
             brake_dist = cls.calculate_braking_distance(effective_speed, target_speed)
             dist_to_brake = max(0.0, fwd_apex - brake_dist)
 
+            # Histerese estrita: se já disparou freio nesta curva antes do ápice, mantém freio até o ápice
+            # (apenas dentro da zona de frenagem imediata)
+            if previous_state in ("freia", "freia_pulse") and is_before_apex and fwd_apex <= (brake_dist + 20.0):
+                return "freia", active_corner, 0.0, fwd_apex
+
             if fwd_apex <= (brake_dist + 3.0):
                 return "freia", active_corner, 0.0, fwd_apex
             if dist_to_brake <= cls.PREPARATION_WINDOW_M:
@@ -248,6 +250,14 @@ class CornerStateMachine:
         effective_speed = max(speed_kmh, 270) if speed_kmh > 0 else target_speed
         brake_dist = cls.calculate_braking_distance(effective_speed, target_speed)
         dist_to_brake = max(0.0, min_forward_apex - brake_dist)
+
+        # Histerese estrita na aproximação pré-curva (somente dentro da zona de frenagem imediata)
+        if (
+            previous_state in ("freia", "freia_pulse")
+            and min_forward_apex <= (brake_dist + 20.0)
+            and min_forward_apex > 25.0
+        ):
+            return "freia", closest_corner, 0.0, min_forward_apex
 
         if min_forward_apex <= (brake_dist + 3.0):
             return "freia", closest_corner, 0.0, min_forward_apex
@@ -418,7 +428,7 @@ class TelemetryState:
 
             # Atualiza máquina de estados
             st, corner, d_brake, d_apex = CornerStateMachine.update(
-                self.lap_distance, self.speed, self.circuit, self.lap_time_ms, self.driver_status
+                self.lap_distance, self.speed, self.circuit, self.lap_time_ms, self.driver_status, previous_state=self.current_state
             )
             self.current_state = st
             self.next_corner = corner
@@ -427,6 +437,14 @@ class TelemetryState:
 
     def update_lap_data(self, lap_dist: float, total_dist: float, lap_num: int, lap_time_ms: int, last_time_ms: int, is_valid: bool, driver_status: int = 1):
         with self._lock:
+            # Detecta teletransporte / reiniciar volta / flashback / reset
+            # (salto abrupto de mais de 50 metros que não seja a passagem natural pelo marco zero)
+            track_len = float(self.circuit.length) if (self.circuit and self.circuit.length) else 4300.0
+            dist_delta = lap_dist - self.lap_distance
+            is_finish_line_cross = (self.lap_distance > (track_len - 120.0) and lap_dist < 120.0)
+            if self.lap_distance > 0 and abs(dist_delta) > 50.0 and not is_finish_line_cross:
+                self.current_state = "reta"
+
             self.lap_distance = lap_dist
             self.total_distance = total_dist
             self.current_lap_num = lap_num
@@ -437,7 +455,7 @@ class TelemetryState:
 
             # Mantém máquina de estados atualizada em sincronia com o avanço da volta
             st, corner, d_brake, d_apex = CornerStateMachine.update(
-                self.lap_distance, self.speed, self.circuit, self.lap_time_ms, self.driver_status
+                self.lap_distance, self.speed, self.circuit, self.lap_time_ms, self.driver_status, previous_state=self.current_state
             )
             self.current_state = st
             self.next_corner = corner
@@ -447,11 +465,12 @@ class TelemetryState:
     def set_session_info(self, track_id: int, track_name: str, track_length: int):
         with self._lock:
             if not self.manual_track_override:
+                track_changed = (self.track_id != track_id)
                 self.track_id = track_id
                 self.track_name = track_name
                 self.track_length = track_length
                 self.circuit = get_circuit_by_track_id(track_id)
-                if self.best_session_lap_ms is None:
+                if track_changed or self.best_session_lap_ms is None:
                     self.best_session_lap_ms = find_best_recorded_lap_ms(track_id)
                 if not self.circuit or not self.circuit.corners:
                     self.auto_learner = AutoCornerLearner(track_id, track_name, track_length)

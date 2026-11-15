@@ -167,8 +167,19 @@ class F1HudOverlay:
 
     def _update_corner_logic(self):
         """Atualiza a máquina de estados (compatibilidade e testes)."""
+        # Se o carro está em movimento (speed > 0), aplica a cinemática modular adaptativa
+        if self.state.speed > 0:
+            st, corner, d_brake, d_apex = CornerStateMachine.update(
+                self.state.lap_distance, self.state.speed, self.state.circuit, self.state.lap_time_ms, self.state.driver_status, previous_state=self.state.current_state
+            )
+            self.state.current_state = st
+            self.state.next_corner = corner
+            self.state.dist_to_brake = d_brake
+            self.state.dist_to_apex = d_apex
+            return
+
         # Trava de Volta de Lançamento / Aquecimento (Out-Lap / Grid / Garagem)
-        # Só ativa se o cronômetro estiver em zero (lap_time_ms == 0)
+        # Só ativa se o cronômetro estiver em zero (lap_time_ms == 0) e velocidade zero
         circuit_len = float(self.state.circuit.length) if (self.state.circuit and self.state.circuit.length) else 4300.0
         if self.state.lap_time_ms == 0 and (
             self.state.lap_distance < 0.0
@@ -187,17 +198,6 @@ class F1HudOverlay:
             self.state.next_corner = c0
             self.state.dist_to_brake = d
             self.state.dist_to_apex = d + (c0.apex_distance if c0 else 100.0)
-            return
-
-        # Se o carro está em movimento (speed > 0), aplica a cinemática modular adaptativa
-        if self.state.speed > 0:
-            st, corner, d_brake, d_apex = CornerStateMachine.update(
-                self.state.lap_distance, self.state.speed, self.state.circuit, self.state.lap_time_ms, self.state.driver_status
-            )
-            self.state.current_state = st
-            self.state.next_corner = corner
-            self.state.dist_to_brake = d_brake
-            self.state.dist_to_apex = d_apex
             return
 
         # Fallback estático para testes unitários com speed == 0
@@ -542,6 +542,23 @@ class F1HudOverlay:
         """Menu de contexto acionado pelo botão direito na janela."""
         self.context_menu = tk.Menu(self.root, tearoff=0)
 
+        # Submenu Pistas
+        track_menu = tk.Menu(self.context_menu, tearoff=0)
+        track_menu.add_command(label="🔄 Automático (Detectar do Jogo)", command=lambda: self.set_track(-1))
+        track_menu.add_separator()
+        main_tracks = [
+            (16, "Interlagos (Brasil)"),
+            (11, "Monza (Itália)"),
+            (17, "Red Bull Ring (Áustria)"),
+            (7, "Silverstone (Grã-Bretanha)"),
+            (10, "Spa-Francorchamps (Bélgica)"),
+            (3, "Sakhir (Bahrein)"),
+            (4, "Catalunya (Espanha)"),
+        ]
+        for tid, tname in main_tracks:
+            track_menu.add_command(label=tname, command=lambda t=tid: self.set_track(t, manual=True))
+        self.context_menu.add_cascade(label="Pistas", menu=track_menu)
+
         # Submenu Layouts
         layout_menu = tk.Menu(self.context_menu, tearoff=0)
         layout_menu.add_command(label="Layout 1 (Cards)", command=lambda: self.set_layout(1))
@@ -643,7 +660,7 @@ class F1HudOverlay:
                     self.f1_bottom.configure(bg=color_cfg["bg"])
 
                     self.l1_lbl_track.config(text=f"{snap['track_name'].upper()} • {corner_num}", fg=color_cfg["top"], bg=color_cfg["bg"])
-                    self.l1_lbl_best.config(text=best_str, fg=color_cfg["sub"], bg=color_cfg["bg"])
+                    self.l1_lbl_best.config(text=best_str, fg="#facc15", bg=color_cfg["bg"])
                     self.l1_lbl_dist.config(text=dist_str if not is_flat else "--", fg=color_cfg["top"], bg=color_cfg["bg"])
                     self.l1_lbl_speed.config(text=f"{speed} km/h", fg=color_cfg["top"], bg=color_cfg["bg"])
                     self.l1_lbl_gear.config(text=f"MARCHA: {gear_str}", fg=color_cfg["top"], bg=color_cfg["bg"])
@@ -672,7 +689,7 @@ class F1HudOverlay:
                 if self._last_rendered.get("l2") != l2_key:
                     self._last_rendered["l2"] = l2_key
                     self.l2_lbl_corner.config(text=f"{corner_num}: {corner_name}".upper())
-                    self.l2_lbl_best.config(text=best_str, fg=theme["accent"], bg=theme["bg"])
+                    self.l2_lbl_best.config(text=best_str, fg="#facc15", bg=theme["bg"])
                     self.l2_lbl_dist.config(text=dist_str if (state in ("reta", "preparo") and not is_flat) else "--")
                     self.l2_lbl_gear_val.config(text=f"MARCHA: {gear_str}")
                     self.l2_lbl_speed_val.config(text=f"{speed} km/h")
@@ -743,9 +760,10 @@ class F1HudOverlay:
                 if self._last_rendered.get("l3") != l3_key:
                     self._last_rendered["l3"] = l3_key
                     self.l3_lbl_track.config(text=f"{snap['track_name'].upper()} • {corner_num}")
-                    self.l3_lbl_best.config(text=best_str, fg=theme["accent"], bg=theme["bg"])
+                    self.l3_lbl_best.config(text=best_str, fg="#facc15", bg=theme["bg"])
 
                     if state == "lancamento":
+                        self.container.configure(highlightbackground=theme["accent"], highlightthickness=1)
                         self.f3_gear_box.config(bg=theme["panel"])
                         self.l3_lbl_gear_title.config(text="MARCHA", fg=theme["dim"], bg=theme["panel"])
                         self.l3_lbl_gear_big.config(text=gear_str, fg=theme["accent"], bg=theme["panel"])
@@ -753,6 +771,7 @@ class F1HudOverlay:
                         self.l3_lbl_action.config(text=f"LARGADA EM {dist_str}", fg="#f59e0b")
                         self.l3_lbl_tip.config(text="Volta de lançamento: aqueça pneus e abra traçado na reta")
                     elif is_flat and state in ("reta", "apice", "acelera"):
+                        self.container.configure(highlightbackground=theme["accent"], highlightthickness=1)
                         self.f3_gear_box.config(bg=theme["panel"])
                         self.l3_lbl_gear_title.config(text="MARCHA", fg=theme["dim"], bg=theme["panel"])
                         self.l3_lbl_gear_big.config(text=gear_str, fg=theme["accent"], bg=theme["panel"])
@@ -760,18 +779,22 @@ class F1HudOverlay:
                         self.l3_lbl_action.config(text="CONTORNO A FUNDO", fg="#22c55e")
                         self.l3_lbl_tip.config(text=f"Curva de alta em aceleração plena na {corner_num} ({corner_name})")
                     elif state == "reta":
+                        self.container.configure(highlightbackground=theme["accent"], highlightthickness=1)
                         self.f3_gear_box.config(bg=theme["panel"])
                         self.l3_lbl_gear_title.config(text="MARCHA", fg=theme["dim"], bg=theme["panel"])
                         self.l3_lbl_gear_big.config(text=gear_str, fg=theme["accent"], bg=theme["panel"])
                         self.l3_badge_status.config(text="RETA", bg=theme["track_bg"], fg=theme["muted"])
-                        self.l3_lbl_action.config(text="100% ACELERADOR", fg=theme["text"])
-                        if dist_to_brake < 800:
+                        if dist_to_brake < 350:
+                            self.l3_lbl_action.config(text=f"ACEL. (FREIA EM {dist_str})", fg=theme["text"])
                             self.l3_lbl_tip.config(text=f"Próxima frenagem para {corner_num} em {dist_str} (Alvo: {target_gear}ª)")
-                        elif feedback:
-                            self.l3_lbl_tip.config(text=feedback)
                         else:
-                            self.l3_lbl_tip.config(text=f"Traçado livre • Foco na entrada de {corner_num} ({corner_name})")
+                            self.l3_lbl_action.config(text="100% ACELERADOR", fg=theme["text"])
+                            if feedback:
+                                self.l3_lbl_tip.config(text=feedback)
+                            else:
+                                self.l3_lbl_tip.config(text=f"Traçado livre • Foco na entrada de {corner_num} ({corner_name})")
                     elif state == "preparo":
+                        self.container.configure(highlightbackground="#f59e0b", highlightthickness=2)
                         self.f3_gear_box.config(bg=theme["panel"])
                         self.l3_lbl_gear_title.config(text=f"ALVO ({gear_str})", fg="#f59e0b", bg=theme["panel"])
                         self.l3_lbl_gear_big.config(text=f"{target_gear}ª", fg="#f59e0b", bg=theme["panel"])
@@ -782,6 +805,7 @@ class F1HudOverlay:
                         is_pulse = state == "freia_pulse"
                         g_bg = "#dc2626" if is_pulse else "#7f1d1d"
                         act_fg = "#ffffff" if is_pulse else "#ef4444"
+                        self.container.configure(highlightbackground="#ef4444", highlightthickness=3)
                         self.f3_gear_box.config(bg=g_bg)
                         self.l3_lbl_gear_title.config(text=f"REDUZIR ({gear_str})", fg="#ffffff", bg=g_bg)
                         self.l3_lbl_gear_big.config(text=f"{target_gear}ª", fg="#ffffff", bg=g_bg)
@@ -789,6 +813,7 @@ class F1HudOverlay:
                         self.l3_lbl_action.config(text="100% FREIO AGORA!", fg=act_fg)
                         self.l3_lbl_tip.config(text=f"Frenagem forte em linha reta • Engatar {target_gear}ª marcha")
                     elif state == "apice":
+                        self.container.configure(highlightbackground=theme["accent"], highlightthickness=1)
                         self.f3_gear_box.config(bg=theme["panel"])
                         self.l3_lbl_gear_title.config(text=f"CONTORNO ({target_gear}ª)", fg=theme["dim"], bg=theme["panel"])
                         self.l3_lbl_gear_big.config(text=gear_str, fg="#38bdf8", bg=theme["panel"])
@@ -796,6 +821,7 @@ class F1HudOverlay:
                         self.l3_lbl_action.config(text="SOLTAR FREIO / VIRAR", fg="#38bdf8")
                         self.l3_lbl_tip.config(text="Mire a zebra interna e inicie a retomada suave")
                     else:
+                        self.container.configure(highlightbackground=theme["accent"], highlightthickness=1)
                         self.f3_gear_box.config(bg=theme["panel"])
                         self.l3_lbl_gear_title.config(text="MARCHA", fg=theme["dim"], bg=theme["panel"])
                         self.l3_lbl_gear_big.config(text=gear_str, fg=theme["accent"], bg=theme["panel"])
