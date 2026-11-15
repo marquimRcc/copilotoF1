@@ -193,21 +193,27 @@ class CornerStateMachine:
 
         if active_corner:
             fwd_apex = (active_corner.apex_distance - norm_dist) % track_len
+            is_before_apex = fwd_apex <= (track_len / 2)
             past_apex = (norm_dist - active_corner.apex_distance) % track_len
 
             # Zona de Ápice: [-25m a +25m em torno de apex_distance]
-            if fwd_apex <= 25.0 or past_apex <= 25.0:
+            if fwd_apex <= 25.0 or (not is_before_apex and past_apex <= 25.0):
                 return "apice", active_corner, 0.0, max(0.0, fwd_apex)
 
-            # Zona de Aceleração / Saída: após o ápice até o fim da curva
-            if past_apex > 25.0:
+            # Zona de Aceleração / Saída: estritamente após o ápice até o fim da curva
+            if not is_before_apex and past_apex > 25.0:
                 return "acelera", active_corner, 0.0, 0.0
 
-            # Entrada da curva antes do ápice: frenagem imediata
+            # Entrada da curva antes do ápice: frenagem imediata ou preparação
             target_speed = cls.estimate_apex_speed(active_corner)
             brake_dist = cls.calculate_braking_distance(speed_kmh, target_speed)
-            if fwd_apex <= (brake_dist + 15.0):
+            dist_to_brake = max(0.0, fwd_apex - brake_dist)
+
+            if fwd_apex <= (brake_dist + 10.0):
                 return "freia", active_corner, 0.0, fwd_apex
+            if dist_to_brake <= cls.PREPARATION_WINDOW_M:
+                return "preparo", active_corner, dist_to_brake, fwd_apex
+            return "reta", active_corner, dist_to_brake, fwd_apex
 
         # 2. Se não está em nenhuma curva ativa, identifica a PRÓXIMA curva à frente
         closest_corner: Optional[CornerZone] = None

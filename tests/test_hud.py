@@ -95,6 +95,29 @@ class TestHudStateMachine(unittest.TestCase):
         self.assertEqual(self.hud.current_state, "lancamento")
         self.assertEqual(self.hud.dist_to_brake, 0.0)
 
+        # 5. Sequência completa de frenagem e contorno do S do Senna a 280 km/h
+        # Aproximação / Preparação (150m da volta, antes do ápice de 380m)
+        self.hud.state.lap_distance = 150.0
+        self.hud.state.speed = 280
+        self.hud.state.lap_time_ms = 2500
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "preparo", "Antes do ponto de freio deve estar em preparo, jamais acelera!")
+
+        # Zona de Frenagem Máxima (240m da volta)
+        self.hud.state.lap_distance = 240.0
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "freia", "No ponto de freada deve comandar freio imediato!")
+
+        # Zona de Ápice (380m da volta)
+        self.hud.state.lap_distance = 380.0
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "apice", "No ápice geométrico deve estar em ápice!")
+
+        # Zona de Saída / Tração (480m da volta)
+        self.hud.state.lap_distance = 480.0
+        self.hud._update_corner_logic()
+        self.assertEqual(self.hud.current_state, "acelera", "Na saída da curva deve comandar aceleração progressiva!")
+
 
 
     def test_theme_and_layout_switching(self):
