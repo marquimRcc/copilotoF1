@@ -1749,63 +1749,63 @@
           "name": "S do Senna",
           "start_distance": 120.0,
           "apex_distance": 380.0,
-          "end_distance": 620.0,
+          "end_distance": 580.0,
           "gear_reference": 3
         },
         {
           "number": "3",
           "name": "Curva do Sol",
-          "start_distance": 680.0,
-          "apex_distance": 920.0,
-          "end_distance": 1100.0,
+          "start_distance": 600.0,
+          "apex_distance": 750.0,
+          "end_distance": 950.0,
           "gear_reference": 8
         },
         {
           "number": "4",
           "name": "Descida do Lago",
-          "start_distance": 1420.0,
-          "apex_distance": 1650.0,
-          "end_distance": 1850.0,
+          "start_distance": 1200.0,
+          "apex_distance": 1440.0,
+          "end_distance": 1580.0,
           "gear_reference": 4
         },
         {
           "number": "6-7",
           "name": "Ferradura / Laranjinha",
           "start_distance": 1880.0,
-          "apex_distance": 2040.0,
+          "apex_distance": 2080.0,
           "end_distance": 2180.0,
-          "gear_reference": 4
+          "gear_reference": 6
         },
         {
           "number": "8",
           "name": "Pinheirinho",
           "start_distance": 2200.0,
-          "apex_distance": 2380.0,
-          "end_distance": 2550.0,
+          "apex_distance": 2360.0,
+          "end_distance": 2480.0,
           "gear_reference": 2
         },
         {
           "number": "9",
           "name": "Bico de Pato",
-          "start_distance": 2600.0,
-          "apex_distance": 2760.0,
-          "end_distance": 2920.0,
+          "start_distance": 2620.0,
+          "apex_distance": 2775.0,
+          "end_distance": 2880.0,
           "gear_reference": 2
         },
         {
           "number": "10",
           "name": "Mergulho",
-          "start_distance": 2950.0,
-          "apex_distance": 3050.0,
-          "end_distance": 3140.0,
+          "start_distance": 2900.0,
+          "apex_distance": 3000.0,
+          "end_distance": 3100.0,
           "gear_reference": 5
         },
         {
           "number": "12",
           "name": "Junção",
-          "start_distance": 3150.0,
-          "apex_distance": 3320.0,
-          "end_distance": 3520.0,
+          "start_distance": 3120.0,
+          "apex_distance": 3280.0,
+          "end_distance": 3450.0,
           "gear_reference": 3
         }
       ]

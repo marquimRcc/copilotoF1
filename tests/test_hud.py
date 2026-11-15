@@ -103,7 +103,8 @@ class TestHudStateMachine(unittest.TestCase):
         self.hud._update_corner_logic()
         self.assertEqual(self.hud.current_state, "preparo", "Antes do ponto de freio deve estar em preparo, jamais acelera!")
 
-        # Zona de Frenagem Máxima (240m da volta)
+        # Zona de Frenagem Máxima (240m da volta a 320 km/h)
+        self.hud.state.speed = 320
         self.hud.state.lap_distance = 240.0
         self.hud._update_corner_logic()
         self.assertEqual(self.hud.current_state, "freia", "No ponto de freada deve comandar freio imediato!")
@@ -188,31 +189,31 @@ class TestHudStateMachine(unittest.TestCase):
         self.assertEqual(self.hud.current_state, "acelera", "Curva do Sol deve ser contornada de pé no fundo!")
         self.assertEqual(self.hud.next_corner.number, "3")
 
-        # C4: Descida do Lago (Fim da Reta Oposta)
-        self.hud.state.lap_distance = 1250.0
+        # C4: Descida do Lago (Fim da Reta Oposta - calibrado com telemetria real: ápice aos 1440m)
+        self.hud.state.lap_distance = 1100.0
         self.hud._update_corner_logic()
         self.assertEqual(self.hud.current_state, "reta")
         self.assertEqual(self.hud.next_corner.number, "4")
 
-        self.hud.state.lap_distance = 1420.0
+        self.hud.state.lap_distance = 1250.0
         self.hud._update_corner_logic()
-        self.assertIn(self.hud.current_state, ("preparo", "freia"))
+        self.assertEqual(self.hud.current_state, "preparo")
 
-        self.hud.state.lap_distance = 1550.0
+        self.hud.state.lap_distance = 1350.0
         self.hud._update_corner_logic()
         self.assertEqual(self.hud.current_state, "freia")
 
-        self.hud.state.lap_distance = 1650.0
+        self.hud.state.lap_distance = 1440.0
         self.hud._update_corner_logic()
         self.assertEqual(self.hud.current_state, "apice")
 
         # C12: Junção e Reta dos Boxes (calibrado com telemetria real: 3150m a 3520m)
-        self.hud.state.lap_distance = 3220.0
+        self.hud.state.lap_distance = 3200.0
         self.hud._update_corner_logic()
         self.assertEqual(self.hud.current_state, "freia")
         self.assertEqual(self.hud.next_corner.number, "12")
 
-        self.hud.state.lap_distance = 3320.0
+        self.hud.state.lap_distance = 3300.0
         self.hud._update_corner_logic()
         self.assertEqual(self.hud.current_state, "apice")
 
@@ -229,21 +230,21 @@ class TestHudStateMachine(unittest.TestCase):
         self.hud.state.circuit = interlagos
         self.hud.state.lap_time_ms = 20000
 
-        # Carro a 310 km/h entrando na freada da Descida do Lago (1520m)
-        self.hud.state.lap_distance = 1520.0
+        # Carro a 310 km/h entrando na freada da Descida do Lago (1320m)
+        self.hud.state.lap_distance = 1320.0
         self.hud.state.speed = 310
         self.hud._update_corner_logic()
         self.assertEqual(self.hud.current_state, "freia")
 
         # Piloto pisa fundo no freio, velocidade cai progressivamente
         for spd in (250, 200, 160, 120):
-            self.hud.state.lap_distance = 1580.0
+            self.hud.state.lap_distance = 1380.0
             self.hud.state.speed = spd
             self.hud._update_corner_logic()
             self.assertEqual(self.hud.current_state, "freia", f"A {spd} km/h o copiloto deve manter comando de FREIO até o ápice!")
 
-        # Chegando no ápice (1650m)
-        self.hud.state.lap_distance = 1650.0
+        # Chegando no ápice (1440m)
+        self.hud.state.lap_distance = 1440.0
         self.hud.state.speed = 130
         self.hud._update_corner_logic()
         self.assertEqual(self.hud.current_state, "apice")
@@ -276,8 +277,9 @@ class TestHudStateMachine(unittest.TestCase):
         self.assertEqual(self.hud.next_corner.number, "1-2")
         self.assertEqual(self.hud.state.best_session_lap_ms, 72500)
 
-        # 3. Avança para a freada do S do Senna
-        self.hud.state.lap_distance = 220.0
+        # 3. Avança para a freada do S do Senna a 330 km/h (freada real: 246m)
+        self.hud.state.speed = 330
+        self.hud.state.lap_distance = 246.0
         self.hud._update_corner_logic()
         self.assertEqual(self.hud.current_state, "freia")
 

@@ -738,23 +738,31 @@ class F1HudOverlay:
                 throttle = snap["throttle"]
                 brake = snap["brake"]
                 feedback = snap["last_lap_feedback"]
-                l3_key = (state, gear_str, corner_num, int(throttle * 50), int(brake * 50), feedback, best_str, self.active_theme, is_flat)
+                l3_key = (state, gear_str, corner_num, dist_str, int(throttle * 50), int(brake * 50), feedback, best_str, self.active_theme, is_flat)
 
                 if self._last_rendered.get("l3") != l3_key:
                     self._last_rendered["l3"] = l3_key
                     self.l3_lbl_track.config(text=f"{snap['track_name'].upper()} • {corner_num}")
                     self.l3_lbl_best.config(text=best_str, fg=theme["accent"], bg=theme["bg"])
-                    self.l3_lbl_gear_big.config(text=gear_str)
 
                     if state == "lancamento":
+                        self.f3_gear_box.config(bg=theme["panel"])
+                        self.l3_lbl_gear_title.config(text="MARCHA", fg=theme["dim"], bg=theme["panel"])
+                        self.l3_lbl_gear_big.config(text=gear_str, fg=theme["accent"], bg=theme["panel"])
                         self.l3_badge_status.config(text="LANÇAMENTO", bg="#78350f", fg="#fef08a")
                         self.l3_lbl_action.config(text=f"LARGADA EM {dist_str}", fg="#f59e0b")
                         self.l3_lbl_tip.config(text="Volta de lançamento: aqueça pneus e abra traçado na reta")
                     elif is_flat and state in ("reta", "apice", "acelera"):
+                        self.f3_gear_box.config(bg=theme["panel"])
+                        self.l3_lbl_gear_title.config(text="MARCHA", fg=theme["dim"], bg=theme["panel"])
+                        self.l3_lbl_gear_big.config(text=gear_str, fg=theme["accent"], bg=theme["panel"])
                         self.l3_badge_status.config(text="PÉ EMBAIXO", bg="#14532d", fg="#bbf7d0")
                         self.l3_lbl_action.config(text="CONTORNO A FUNDO", fg="#22c55e")
                         self.l3_lbl_tip.config(text=f"Curva de alta em aceleração plena na {corner_num} ({corner_name})")
                     elif state == "reta":
+                        self.f3_gear_box.config(bg=theme["panel"])
+                        self.l3_lbl_gear_title.config(text="MARCHA", fg=theme["dim"], bg=theme["panel"])
+                        self.l3_lbl_gear_big.config(text=gear_str, fg=theme["accent"], bg=theme["panel"])
                         self.l3_badge_status.config(text="RETA", bg=theme["track_bg"], fg=theme["muted"])
                         self.l3_lbl_action.config(text="100% ACELERADOR", fg=theme["text"])
                         if dist_to_brake < 800:
@@ -764,18 +772,33 @@ class F1HudOverlay:
                         else:
                             self.l3_lbl_tip.config(text=f"Traçado livre • Foco na entrada de {corner_num} ({corner_name})")
                     elif state == "preparo":
+                        self.f3_gear_box.config(bg=theme["panel"])
+                        self.l3_lbl_gear_title.config(text=f"ALVO ({gear_str})", fg="#f59e0b", bg=theme["panel"])
+                        self.l3_lbl_gear_big.config(text=f"{target_gear}ª", fg="#f59e0b", bg=theme["panel"])
                         self.l3_badge_status.config(text="APROXIMAÇÃO", bg="#78350f", fg="#fef08a")
                         self.l3_lbl_action.config(text=f"PREPARAR FREADA ({dist_str})", fg="#f59e0b")
                         self.l3_lbl_tip.config(text=f"Alinhar volante e reduzir para {target_gear}ª marcha no ápice")
                     elif "freia" in state:
-                        self.l3_badge_status.config(text="FRENAGEM", bg="#7f1d1d", fg="#fecaca")
-                        self.l3_lbl_action.config(text=f"100% FREIO AGORA!", fg="#ef4444")
+                        is_pulse = state == "freia_pulse"
+                        g_bg = "#dc2626" if is_pulse else "#7f1d1d"
+                        act_fg = "#ffffff" if is_pulse else "#ef4444"
+                        self.f3_gear_box.config(bg=g_bg)
+                        self.l3_lbl_gear_title.config(text=f"REDUZIR ({gear_str})", fg="#ffffff", bg=g_bg)
+                        self.l3_lbl_gear_big.config(text=f"{target_gear}ª", fg="#ffffff", bg=g_bg)
+                        self.l3_badge_status.config(text="FREIA AGORA!", bg=g_bg, fg="#ffffff")
+                        self.l3_lbl_action.config(text="100% FREIO AGORA!", fg=act_fg)
                         self.l3_lbl_tip.config(text=f"Frenagem forte em linha reta • Engatar {target_gear}ª marcha")
                     elif state == "apice":
+                        self.f3_gear_box.config(bg=theme["panel"])
+                        self.l3_lbl_gear_title.config(text=f"CONTORNO ({target_gear}ª)", fg=theme["dim"], bg=theme["panel"])
+                        self.l3_lbl_gear_big.config(text=gear_str, fg="#38bdf8", bg=theme["panel"])
                         self.l3_badge_status.config(text="ÁPICE", bg="#075985", fg="#bae6fd")
                         self.l3_lbl_action.config(text="SOLTAR FREIO / VIRAR", fg="#38bdf8")
                         self.l3_lbl_tip.config(text="Mire a zebra interna e inicie a retomada suave")
                     else:
+                        self.f3_gear_box.config(bg=theme["panel"])
+                        self.l3_lbl_gear_title.config(text="MARCHA", fg=theme["dim"], bg=theme["panel"])
+                        self.l3_lbl_gear_big.config(text=gear_str, fg=theme["accent"], bg=theme["panel"])
                         self.l3_badge_status.config(text="SAÍDA", bg="#14532d", fg="#bbf7d0")
                         self.l3_lbl_action.config(text="TRACIONAR PROGRESSIVO", fg="#22c55e")
                         self.l3_lbl_tip.config(text=feedback if feedback else f"Abra o volante e aplique potência máxima na saída da {corner_num}")

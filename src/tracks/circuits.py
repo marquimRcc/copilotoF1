@@ -49,7 +49,7 @@ def load_circuits_from_json(json_path: str = "config/circuits_f125.json") -> Dic
 
     if target_path:
         try:
-            with open(target_path, "r", encoding="utf-8") as f:
+            with open(target_path, "r", encoding="utf-8-sig") as f:
                 data = json.load(f)
                 circuits_raw = data.get("circuits", {})
                 for str_id, cdata in circuits_raw.items():

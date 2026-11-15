@@ -1,12 +1,6 @@
 """
-Opção A: Sincronizador Oficial de Circuitos via FIA Live Timing (FastF1).
-Extrai a distância oficial de cada curva da FIA e a telemetria da Pole Position,
-normalizando proporcionalmente para o comprimento exato da pista no EA SPORTS F1 25.
-
-Como usar:
-    pip install fastf1
-    python tools/sync_circuits_fastf1.py                # Sincroniza todas as pistas
-    python tools/sync_circuits_fastf1.py --track-id 16  # Sincroniza apenas Interlagos
+Extrator direto de pontos de frenagem e marchas da telemetria oficial FastF1 para o F1 25.
+Usa o ponto exato de pressão no freio (Brake > 0) da volta mais rápida de cada pista.
 """
 
 import argparse
@@ -15,13 +9,8 @@ import os
 import sys
 from typing import Dict, List, Tuple
 
-try:
-    import fastf1
-except ImportError:
-    print("❌ Biblioteca 'fastf1' não encontrada. Instale com: pip install fastf1")
-    sys.exit(1)
+import fastf1
 
-# Mapeamento oficial: Track ID do EA SPORTS F1 25 -> (Evento FastF1, Nome Exibição, País, Comprimento Oficial F1 25)
 F125_TRACK_MAP: Dict[int, Tuple[str, str, str, int]] = {
     0: ("Australia", "Melbourne", "Austrália", 5278),
     2: ("China", "Shanghai", "China", 5451),
@@ -50,9 +39,9 @@ F125_TRACK_MAP: Dict[int, Tuple[str, str, str, int]] = {
 }
 
 
-def sync_track_from_fia(year: int, track_id: int, existing_corners: List[Dict]) -> Dict:
+def sync_track(year: int, track_id: int, existing_corners: List[Dict]) -> Dict:
     gp_query, name, country, f125_length = F125_TRACK_MAP[track_id]
-    print(f"📡 [ID {track_id:02d}] Baixando telemetria oficial da FIA para {name} ({year})...")
+    print(f"📡 [ID {track_id:02d}] Extraindo telemetria real de frenagem para {name}...")
 
     session = fastf1.get_session(year, gp_query, "Q")
     session.load(telemetry=True, weather=False, messages=False)
@@ -62,41 +51,40 @@ def sync_track_from_fia(year: int, track_id: int, existing_corners: List[Dict]) 
 
     fia_max_dist = float(car_data["Distance"].max())
     scale = f125_length / fia_max_dist if fia_max_dist > 1000 else 1.0
-
-    # Mapa de nomes preservados caso já existam no JSON
     existing_names = {str(c.get("number")): c.get("name") for c in existing_corners}
 
     raw_corners = []
     for _, row in circuit_info.corners.iterrows():
         c_num = f"{int(row['Number'])}{row.get('Letter', '')}".strip()
-        fia_apex = float(row["Distance"])
-        scaled_apex = fia_apex * scale
+        fia_corner_dist = float(row["Distance"])
 
-        # Janela de análise na volta da Pole [-130m antes do ápice até +70m depois]
+        # Janela na telemetria real [-140m antes da curva até +60m depois]
         win = car_data[
-            (car_data["Distance"] >= max(0.0, fia_apex - 130.0))
-            & (car_data["Distance"] <= min(fia_max_dist, fia_apex + 70.0))
+            (car_data["Distance"] >= max(0.0, fia_corner_dist - 140.0))
+            & (car_data["Distance"] <= min(fia_max_dist, fia_corner_dist + 60.0))
         ]
         if win.empty:
             continue
 
         min_idx = win["Speed"].idxmin()
+        true_fia_apex = float(win.loc[min_idx, "Distance"])
         min_gear = int(win.loc[min_idx, "nGear"])
         min_speed = float(win.loc[min_idx, "Speed"])
 
-        # Se a velocidade mínima for > 265 km/h e sem freio, trata como curva de alta / flat (8ª marcha)
-        pre_apex = win[win["Distance"] <= fia_apex]
-        braking_rows = pre_apex[pre_apex["Brake"] > 0]
+        # Busca o metro EXATO em que o piloto pisou no freio antes do ápice
+        pre_apex = win[win["Distance"] <= true_fia_apex]
+        braking_rows = pre_apex[(pre_apex["Brake"] > 0) & (pre_apex["Throttle"] < 50)]
 
-        if not braking_rows.empty:
-            fia_brake_start = float(braking_rows["Distance"].iloc[0])
-            start_dist = max(0.0, (fia_brake_start * scale) - 15.0)
+        scaled_apex = true_fia_apex * scale
+        if not braking_rows.empty and min_speed < 265:
+            first_brake_m = float(braking_rows["Distance"].iloc[0]) * scale
+            start_dist = max(10.0, min(first_brake_m, scaled_apex - 35.0))
             gear_ref = max(1, min(7, min_gear))
         else:
-            start_dist = max(0.0, scaled_apex - 75.0)
+            start_dist = max(10.0, scaled_apex - 50.0)
             gear_ref = 8 if min_speed >= 260 else max(1, min(8, min_gear))
 
-        end_dist = min(float(f125_length - 10), scaled_apex + 85.0)
+        end_dist = min(float(f125_length - 15), scaled_apex + 70.0)
 
         raw_corners.append({
             "number": c_num,
@@ -107,19 +95,19 @@ def sync_track_from_fia(year: int, track_id: int, existing_corners: List[Dict]) 
             "gear_reference": gear_ref,
         })
 
-    # Mescla pernas de chicanes muito próximas (< 75m entre ápices)
-    merged_corners: List[Dict] = []
+    # Agrupa pernas de S / Chicanes (< 95m entre ápices) mantendo o ponto de freio da 1ª perna
+    merged: List[Dict] = []
     i = 0
     while i < len(raw_corners):
         curr = raw_corners[i]
         if i + 1 < len(raw_corners):
             nxt = raw_corners[i + 1]
-            if (nxt["apex_distance"] - curr["apex_distance"]) < 75.0:
-                combined_num = f"{curr['number']}-{nxt['number']}"
-                combined_name = existing_names.get(combined_num, f"Chicane {combined_num}")
-                merged_corners.append({
-                    "number": combined_num,
-                    "name": combined_name,
+            if (nxt["apex_distance"] - curr["apex_distance"]) < 95.0:
+                comb_num = f"{curr['number']}-{nxt['number']}"
+                comb_name = existing_names.get(comb_num, curr["name"])
+                merged.append({
+                    "number": comb_num,
+                    "name": comb_name,
                     "start_distance": curr["start_distance"],
                     "apex_distance": curr["apex_distance"],
                     "end_distance": nxt["end_distance"],
@@ -127,7 +115,7 @@ def sync_track_from_fia(year: int, track_id: int, existing_corners: List[Dict]) 
                 })
                 i += 2
                 continue
-        merged_corners.append(curr)
+        merged.append(curr)
         i += 1
 
     return {
@@ -135,44 +123,38 @@ def sync_track_from_fia(year: int, track_id: int, existing_corners: List[Dict]) 
         "name": name,
         "country": country,
         "length": f125_length,
-        "corners": merged_corners,
+        "corners": merged,
     }
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Sincroniza config/circuits_f125.json com dados oficiais da FIA (FastF1)")
-    parser.add_argument("--year", type=int, default=2024, help="Temporada de referência da FIA (padrão: 2024)")
-    parser.add_argument("--track-id", type=int, default=None, help="Sincronizar apenas um Track ID específico (ex: 16)")
-    parser.add_argument("--output", default="config/circuits_f125.json", help="Caminho do arquivo JSON")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--year", type=int, default=2024)
+    parser.add_argument("--track-id", type=int, default=None)
+    parser.add_argument("--output", default="config/circuits_f125.json")
     args = parser.parse_args()
 
     cache_dir = os.path.join(os.path.dirname(__file__), "..", ".fastf1_cache")
     os.makedirs(cache_dir, exist_ok=True)
-    fastf1.Cache.enable_cache(cache_dir)
+    if hasattr(fastf1.Cache, "configure"):
+        fastf1.Cache.configure(cache_dir)
+    else:
+        fastf1.Cache.enable_cache(cache_dir)
 
-    existing_data = {"version": "2.0.0", "game": "EA SPORTS F1 25", "circuits": {}}
-    if os.path.exists(args.output):
-        with open(args.output, "r", encoding="utf-8") as f:
-            existing_data = json.load(f)
+    with open(args.output, "r", encoding="utf-8-sig") as f:
+        data = json.load(f)
 
-    target_ids = [args.track_id] if args.track_id is not None else sorted(F125_TRACK_MAP.keys())
-
-    for tid in target_ids:
-        if tid not in F125_TRACK_MAP:
-            print(f"⚠️ Track ID {tid} não mapeado.")
-            continue
+    targets = [args.track_id] if args.track_id is not None else sorted(F125_TRACK_MAP.keys())
+    for tid in targets:
         try:
-            old_corners = existing_data.get("circuits", {}).get(str(tid), {}).get("corners", [])
-            updated_circuit = sync_track_from_fia(args.year, tid, old_corners)
-            existing_data.setdefault("circuits", {})[str(tid)] = updated_circuit
-            print(f"   ✅ {updated_circuit['name']} atualizado ({len(updated_circuit['corners'])} zonas de curva).")
+            old_c = data.get("circuits", {}).get(str(tid), {}).get("corners", [])
+            data["circuits"][str(tid)] = sync_track(args.year, tid, old_c)
         except Exception as e:
-            print(f"   ⚠️ Erro ao sincronizar ID {tid}: {e}")
+            print(f"⚠️ Mantido perfil local para ID {tid}: {e}")
 
     with open(args.output, "w", encoding="utf-8") as f:
-        json.dump(existing_data, f, ensure_ascii=False, indent=2)
-
-    print(f"\n🏁 Sincronização concluída em: {args.output}")
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    print("✅ Sincronização concluída!")
 
 
 if __name__ == "__main__":

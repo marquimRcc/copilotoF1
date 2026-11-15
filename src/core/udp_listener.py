@@ -142,8 +142,8 @@ class F1UdpListener:
                         self.active_lap_num = 0
                         self.last_lap_invalid = False
 
-                    # 3. Descarta se reiniciou a volta no Time Trial
-                    elif lap.current_lap_time_ms == 0 and len(self.lap_samples) > 0:
+                    # 3. Descarta se reiniciou a volta no Time Trial / Volta de saída
+                    elif lap.current_lap_time_ms == 0:
                         self.lap_samples.clear()
                         self.active_lap_num = 0
                         self.last_lap_invalid = False
