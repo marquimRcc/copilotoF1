@@ -74,7 +74,7 @@ def _library_paths(steam_root: Path) -> list[Path]:
     except OSError:
         return libraries
     # Supports modern VDF entries: "path" "D:\\SteamLibrary".
-    for raw in re.findall(r'"path"\\s+"((?:\\\\.|[^"])*)"', text):
+    for raw in re.findall(r'"path"\s+"((?:\\.|[^"])*)"', text):
         decoded = raw.replace("\\\\", "\\").replace("\\/", "/")
         path = Path(decoded)
         if path not in libraries:
@@ -95,7 +95,7 @@ def discover_installation() -> Installation:
         manifest = candidate
         try:
             content = candidate.read_text(encoding="utf-8", errors="replace")
-            match = re.search(r'"installdir"\\s+"([^"]+)"', content)
+            match = re.search(r'"installdir"\s+"([^"]+)"', content)
             if match:
                 game_dir = library / "steamapps" / "common" / match.group(1)
         except OSError:
