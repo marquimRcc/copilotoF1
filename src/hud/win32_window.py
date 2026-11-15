@@ -4,7 +4,6 @@ import ctypes
 import sys
 from typing import Optional
 
-# Constantes Win32 API
 GWL_EXSTYLE = -20
 WS_EX_TOPMOST = 0x00000008
 WS_EX_TRANSPARENT = 0x00000020
@@ -21,6 +20,27 @@ SWP_NOACTIVATE = 0x0010
 SWP_SHOWWINDOW = 0x0040
 
 IS_WINDOWS = sys.platform == "win32"
+
+if IS_WINDOWS:
+    from ctypes import wintypes
+
+    _user32 = ctypes.windll.user32
+    _user32.GetParent.argtypes = [wintypes.HWND]
+    _user32.GetParent.restype = wintypes.HWND
+    _user32.GetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int]
+    _user32.GetWindowLongW.restype = wintypes.LONG
+    _user32.SetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int, wintypes.LONG]
+    _user32.SetWindowLongW.restype = wintypes.LONG
+    _user32.SetWindowPos.argtypes = [
+        wintypes.HWND,
+        wintypes.HWND,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        wintypes.UINT,
+    ]
+    _user32.SetWindowPos.restype = wintypes.BOOL
 
 
 class Win32WindowManager:
@@ -41,8 +61,8 @@ class Win32WindowManager:
         try:
             self.root.update_idletasks()
             raw_id = self.root.winfo_id()
-            parent = ctypes.windll.user32.GetParent(raw_id)
-            self.hwnd = parent if parent != 0 else raw_id
+            parent = _user32.GetParent(raw_id)
+            self.hwnd = parent if parent else raw_id
             return self.hwnd
         except Exception:
             return None
@@ -52,10 +72,9 @@ class Win32WindowManager:
         if not IS_WINDOWS or not self.hwnd:
             return False
         try:
-            user32 = ctypes.windll.user32
-            style = user32.GetWindowLongW(self.hwnd, GWL_EXSTYLE)
+            style = _user32.GetWindowLongW(self.hwnd, GWL_EXSTYLE)
             new_style = style | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST
-            user32.SetWindowLongW(self.hwnd, GWL_EXSTYLE, new_style)
+            _user32.SetWindowLongW(self.hwnd, GWL_EXSTYLE, new_style)
             self.force_topmost()
             return True
         except Exception:
@@ -66,12 +85,14 @@ class Win32WindowManager:
         if not IS_WINDOWS or not self.hwnd:
             return False
         try:
-            user32 = ctypes.windll.user32
-            user32.SetWindowPos(
+            _user32.SetWindowPos(
                 self.hwnd,
-                HWND_TOPMOST,
-                0, 0, 0, 0,
-                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW
+                wintypes.HWND(HWND_TOPMOST),
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW,
             )
             return True
         except Exception:
@@ -83,14 +104,13 @@ class Win32WindowManager:
             self.click_through_active = enabled
             return False
         try:
-            user32 = ctypes.windll.user32
-            style = user32.GetWindowLongW(self.hwnd, GWL_EXSTYLE)
+            style = _user32.GetWindowLongW(self.hwnd, GWL_EXSTYLE)
             if enabled:
                 new_style = style | WS_EX_TRANSPARENT | WS_EX_LAYERED
             else:
-                new_style = (style & ~WS_EX_TRANSPARENT)
+                new_style = style & ~WS_EX_TRANSPARENT
 
-            user32.SetWindowLongW(self.hwnd, GWL_EXSTYLE, new_style)
+            _user32.SetWindowLongW(self.hwnd, GWL_EXSTYLE, new_style)
             self.force_topmost()
             self.click_through_active = enabled
             return True

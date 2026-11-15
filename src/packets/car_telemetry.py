@@ -45,7 +45,7 @@ class CarTelemetryData:
 def parse_car_telemetry(data: bytes, header: PacketHeader) -> Optional[CarTelemetryData]:
     """Extrai os dados de telemetria do carro do jogador ativo."""
     player_idx = header.player_car_index
-    if player_idx < 0 or player_idx > 21:
+    if player_idx < 0 or player_idx > 23:
         return None
 
     # Offset inicial após o header

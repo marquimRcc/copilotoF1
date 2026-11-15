@@ -167,32 +167,10 @@ class F1HudOverlay:
 
     def _update_corner_logic(self):
         """Atualiza a máquina de estados (compatibilidade e testes)."""
-        # Trava de Volta de Lançamento / Aquecimento (Out-Lap / Grid / Garagem)
-        # Só ativa se o cronômetro estiver em zero (lap_time_ms == 0)
-        circuit_len = float(self.state.circuit.length) if (self.state.circuit and self.state.circuit.length) else 4300.0
-        if self.state.lap_time_ms == 0 and (
-            self.state.lap_distance < 0.0
-            or self.state.driver_status in (0, 3)
-            or self.state.lap_distance > (circuit_len - 1600.0)
-            or self.state.lap_distance < 15.0
-        ):
-            c0 = self.state.circuit.corners[0] if (self.state.circuit and self.state.circuit.corners) else None
-            if self.state.lap_distance < 0.0:
-                d = abs(self.state.lap_distance)
-            elif self.state.lap_distance > 500.0:
-                d = max(0.0, circuit_len - self.state.lap_distance)
-            else:
-                d = max(0.0, -self.state.lap_distance)
-            self.state.current_state = "lancamento"
-            self.state.next_corner = c0
-            self.state.dist_to_brake = d
-            self.state.dist_to_apex = d + (c0.apex_distance if c0 else 100.0)
-            return
-
-        # Se o carro está em movimento (speed > 0), aplica a cinemática modular adaptativa
-        if self.state.speed > 0:
+        # Se o cronômetro está zerado (volta de lançamento / reinício) ou o carro está em movimento
+        if self.state.lap_time_ms == 0 or self.state.speed > 0:
             st, corner, d_brake, d_apex = CornerStateMachine.update(
-                self.state.lap_distance, self.state.speed, self.state.circuit, self.state.lap_time_ms, self.state.driver_status
+                self.state.lap_distance, self.state.speed, self.state.circuit, self.state.lap_time_ms, self.state.driver_status, previous_state=self.state.current_state
             )
             self.state.current_state = st
             self.state.next_corner = corner
@@ -200,7 +178,7 @@ class F1HudOverlay:
             self.state.dist_to_apex = d_apex
             return
 
-        # Fallback estático para testes unitários com speed == 0
+        # Fallback estático para testes unitários com speed == 0 e lap_time_ms > 0
         if not self.state.circuit or not self.state.circuit.corners:
             self.state.current_state = "reta"
             return
@@ -542,6 +520,23 @@ class F1HudOverlay:
         """Menu de contexto acionado pelo botão direito na janela."""
         self.context_menu = tk.Menu(self.root, tearoff=0)
 
+        # Submenu Pistas
+        track_menu = tk.Menu(self.context_menu, tearoff=0)
+        track_menu.add_command(label="🔄 Automático (Detectar do Jogo)", command=lambda: self.set_track(-1))
+        track_menu.add_separator()
+        main_tracks = [
+            (16, "Interlagos (Brasil)"),
+            (11, "Monza (Itália)"),
+            (17, "Red Bull Ring (Áustria)"),
+            (7, "Silverstone (Grã-Bretanha)"),
+            (10, "Spa-Francorchamps (Bélgica)"),
+            (3, "Sakhir (Bahrein)"),
+            (4, "Catalunya (Espanha)"),
+        ]
+        for tid, tname in main_tracks:
+            track_menu.add_command(label=tname, command=lambda t=tid: self.set_track(t, manual=True))
+        self.context_menu.add_cascade(label="Pistas", menu=track_menu)
+
         # Submenu Layouts
         layout_menu = tk.Menu(self.context_menu, tearoff=0)
         layout_menu.add_command(label="Layout 1 (Cards)", command=lambda: self.set_layout(1))
@@ -569,6 +564,17 @@ class F1HudOverlay:
         if not self.click_through_locked:
             self.context_menu.post(event.x_root, event.y_root)
 
+    def _run_on_ui_thread(self, func, *args, **kwargs):
+        """Executa callbacks vindos do Systray na thread principal do Tkinter."""
+        import threading
+        if threading.current_thread() is threading.main_thread():
+            func(*args, **kwargs)
+        elif self.running and self.root:
+            try:
+                self.root.after(0, lambda: func(*args, **kwargs))
+            except Exception:
+                pass
+
     def setup_systray(self):
         """Inicializa ícone de bandeja isolado em thread."""
         assets_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "assets"))
@@ -576,11 +582,11 @@ class F1HudOverlay:
 
         self.systray = SystrayController(
             icon_path=icon_path,
-            on_change_layout=self.set_layout,
-            on_change_theme=self.set_theme,
-            on_change_track=self.set_track,
-            on_toggle_click_through=self.toggle_click_through,
-            on_quit=self.on_close,
+            on_change_layout=lambda l: self._run_on_ui_thread(self.set_layout, l),
+            on_change_theme=lambda t: self._run_on_ui_thread(self.set_theme, t),
+            on_change_track=lambda tid, m: self._run_on_ui_thread(self.set_track, tid, m),
+            on_toggle_click_through=lambda locked: self._run_on_ui_thread(self.toggle_click_through, locked),
+            on_quit=lambda: self._run_on_ui_thread(self.on_close),
             initial_layout=self.active_layout,
             initial_theme=self.active_theme,
             initial_click_through=self.click_through_locked,
@@ -631,8 +637,9 @@ class F1HudOverlay:
                     self.f1_center.configure(bg=color_cfg["bg"])
                     self.f1_bottom.configure(bg=color_cfg["bg"])
 
-                    self.l1_lbl_track.config(text=f"{snap['track_name'].upper()} • {corner_num}", fg=color_cfg["top"], bg=color_cfg["bg"])
-                    self.l1_lbl_best.config(text=best_str, fg=color_cfg["sub"], bg=color_cfg["bg"])
+                    track_banner = f"{snap['track_name'].upper()} • ABRINDO VOLTA" if state == "lancamento" else f"{snap['track_name'].upper()} • {corner_num}"
+                    self.l1_lbl_track.config(text=track_banner, fg=color_cfg["top"], bg=color_cfg["bg"])
+                    self.l1_lbl_best.config(text=best_str, fg="#facc15", bg=color_cfg["bg"])
                     self.l1_lbl_dist.config(text=dist_str if not is_flat else "--", fg=color_cfg["top"], bg=color_cfg["bg"])
                     self.l1_lbl_speed.config(text=f"{speed} km/h", fg=color_cfg["top"], bg=color_cfg["bg"])
                     self.l1_lbl_gear.config(text=f"MARCHA: {gear_str}", fg=color_cfg["top"], bg=color_cfg["bg"])
@@ -648,7 +655,7 @@ class F1HudOverlay:
                             "freia_pulse": ("FREIA AGORA!", f"REDUZIR P/ {target_gear}ª MARCHA"),
                             "apice": ("ÁPICE / CONTORNO", "SOLTAR FREIO / VIRAR"),
                             "acelera": ("ACELERAÇÃO!", "TRACIONAR NA SAÍDA"),
-                            "lancamento": ("VOLTA DE LANÇAMENTO", f"LARGADA EM {dist_str}"),
+                            "lancamento": ("ABRINDO VOLTA", f"PÉ EMBAIXO • LARGADA EM {dist_str}"),
                         }
                         main_txt, sub_txt = state_labels.get(state, ("RETA", ""))
 
@@ -661,7 +668,7 @@ class F1HudOverlay:
                 if self._last_rendered.get("l2") != l2_key:
                     self._last_rendered["l2"] = l2_key
                     self.l2_lbl_corner.config(text=f"{corner_num}: {corner_name}".upper())
-                    self.l2_lbl_best.config(text=best_str, fg=theme["accent"], bg=theme["bg"])
+                    self.l2_lbl_best.config(text=best_str, fg="#facc15", bg=theme["bg"])
                     self.l2_lbl_dist.config(text=dist_str if (state in ("reta", "preparo") and not is_flat) else "--")
                     self.l2_lbl_gear_val.config(text=f"MARCHA: {gear_str}")
                     self.l2_lbl_speed_val.config(text=f"{speed} km/h")
@@ -688,9 +695,10 @@ class F1HudOverlay:
                         self.f2_leds[i].configure(bg=col)
 
                     if state == "lancamento":
-                        self.l2_lbl_corner.config(text="VOLTA DE LANÇAMENTO")
+                        self.l2_lbl_corner.config(text=f"{snap['track_name'].upper()} • ABRINDO VOLTA")
                         self.l2_lbl_dist.config(text=dist_str)
-                        self.l2_lbl_action.config(text=f"LARGADA EM {dist_str}", fg="#f59e0b")
+                        self.l2_lbl_action.config(text=f"PÉ EMBAIXO / LARGADA EM {dist_str}", fg="#f59e0b")
+                        self.l2_lbl_apex_target.config(text=f"ALVO: {corner_num} ({corner_name})")
                         bar_color = "#f59e0b"
                         pct = max(0.0, min(1.0, 1.0 - (dist_to_brake / 500.0)))
                     elif is_flat and state in ("reta", "apice", "acelera"):
@@ -727,44 +735,77 @@ class F1HudOverlay:
                 throttle = snap["throttle"]
                 brake = snap["brake"]
                 feedback = snap["last_lap_feedback"]
-                l3_key = (state, gear_str, corner_num, int(throttle * 50), int(brake * 50), feedback, best_str, self.active_theme, is_flat)
+                l3_key = (state, gear_str, corner_num, dist_str, int(throttle * 50), int(brake * 50), feedback, best_str, self.active_theme, is_flat)
 
                 if self._last_rendered.get("l3") != l3_key:
                     self._last_rendered["l3"] = l3_key
-                    self.l3_lbl_track.config(text=f"{snap['track_name'].upper()} • {corner_num}")
-                    self.l3_lbl_best.config(text=best_str, fg=theme["accent"], bg=theme["bg"])
-                    self.l3_lbl_gear_big.config(text=gear_str)
+                    track_banner_3 = f"{snap['track_name'].upper()} • ABRINDO VOLTA" if state == "lancamento" else f"{snap['track_name'].upper()} • {corner_num}"
+                    self.l3_lbl_track.config(text=track_banner_3)
+                    self.l3_lbl_best.config(text=best_str, fg="#facc15", bg=theme["bg"])
 
                     if state == "lancamento":
-                        self.l3_badge_status.config(text="LANÇAMENTO", bg="#78350f", fg="#fef08a")
+                        self.container.configure(highlightbackground=theme["accent"], highlightthickness=1)
+                        self.f3_gear_box.config(bg=theme["panel"])
+                        self.l3_lbl_gear_title.config(text="MARCHA", fg=theme["dim"], bg=theme["panel"])
+                        self.l3_lbl_gear_big.config(text=gear_str, fg=theme["accent"], bg=theme["panel"])
+                        self.l3_badge_status.config(text="ABRINDO VOLTA", bg="#78350f", fg="#fef08a")
                         self.l3_lbl_action.config(text=f"LARGADA EM {dist_str}", fg="#f59e0b")
-                        self.l3_lbl_tip.config(text="Volta de lançamento: aqueça pneus e abra traçado na reta")
+                        self.l3_lbl_tip.config(text=f"Aceleração plena na reta dos boxes • Foco na entrada de {corner_num} ({corner_name})")
                     elif is_flat and state in ("reta", "apice", "acelera"):
+                        self.container.configure(highlightbackground=theme["accent"], highlightthickness=1)
+                        self.f3_gear_box.config(bg=theme["panel"])
+                        self.l3_lbl_gear_title.config(text="MARCHA", fg=theme["dim"], bg=theme["panel"])
+                        self.l3_lbl_gear_big.config(text=gear_str, fg=theme["accent"], bg=theme["panel"])
                         self.l3_badge_status.config(text="PÉ EMBAIXO", bg="#14532d", fg="#bbf7d0")
                         self.l3_lbl_action.config(text="CONTORNO A FUNDO", fg="#22c55e")
                         self.l3_lbl_tip.config(text=f"Curva de alta em aceleração plena na {corner_num} ({corner_name})")
                     elif state == "reta":
+                        self.container.configure(highlightbackground=theme["accent"], highlightthickness=1)
+                        self.f3_gear_box.config(bg=theme["panel"])
+                        self.l3_lbl_gear_title.config(text="MARCHA", fg=theme["dim"], bg=theme["panel"])
+                        self.l3_lbl_gear_big.config(text=gear_str, fg=theme["accent"], bg=theme["panel"])
                         self.l3_badge_status.config(text="RETA", bg=theme["track_bg"], fg=theme["muted"])
-                        self.l3_lbl_action.config(text="100% ACELERADOR", fg=theme["text"])
-                        if dist_to_brake < 800:
+                        if dist_to_brake < 350:
+                            self.l3_lbl_action.config(text=f"ACEL. (FREIA EM {dist_str})", fg=theme["text"])
                             self.l3_lbl_tip.config(text=f"Próxima frenagem para {corner_num} em {dist_str} (Alvo: {target_gear}ª)")
-                        elif feedback:
-                            self.l3_lbl_tip.config(text=feedback)
                         else:
-                            self.l3_lbl_tip.config(text=f"Traçado livre • Foco na entrada de {corner_num} ({corner_name})")
+                            self.l3_lbl_action.config(text="100% ACELERADOR", fg=theme["text"])
+                            if feedback:
+                                self.l3_lbl_tip.config(text=feedback)
+                            else:
+                                self.l3_lbl_tip.config(text=f"Traçado livre • Foco na entrada de {corner_num} ({corner_name})")
                     elif state == "preparo":
+                        self.container.configure(highlightbackground="#f59e0b", highlightthickness=2)
+                        self.f3_gear_box.config(bg=theme["panel"])
+                        self.l3_lbl_gear_title.config(text=f"ALVO ({gear_str})", fg="#f59e0b", bg=theme["panel"])
+                        self.l3_lbl_gear_big.config(text=f"{target_gear}ª", fg="#f59e0b", bg=theme["panel"])
                         self.l3_badge_status.config(text="APROXIMAÇÃO", bg="#78350f", fg="#fef08a")
                         self.l3_lbl_action.config(text=f"PREPARAR FREADA ({dist_str})", fg="#f59e0b")
                         self.l3_lbl_tip.config(text=f"Alinhar volante e reduzir para {target_gear}ª marcha no ápice")
                     elif "freia" in state:
-                        self.l3_badge_status.config(text="FRENAGEM", bg="#7f1d1d", fg="#fecaca")
-                        self.l3_lbl_action.config(text=f"100% FREIO AGORA!", fg="#ef4444")
+                        is_pulse = state == "freia_pulse"
+                        g_bg = "#dc2626" if is_pulse else "#7f1d1d"
+                        act_fg = "#ffffff" if is_pulse else "#ef4444"
+                        self.container.configure(highlightbackground="#ef4444", highlightthickness=3)
+                        self.f3_gear_box.config(bg=g_bg)
+                        self.l3_lbl_gear_title.config(text=f"REDUZIR ({gear_str})", fg="#ffffff", bg=g_bg)
+                        self.l3_lbl_gear_big.config(text=f"{target_gear}ª", fg="#ffffff", bg=g_bg)
+                        self.l3_badge_status.config(text="FREIA AGORA!", bg=g_bg, fg="#ffffff")
+                        self.l3_lbl_action.config(text="100% FREIO AGORA!", fg=act_fg)
                         self.l3_lbl_tip.config(text=f"Frenagem forte em linha reta • Engatar {target_gear}ª marcha")
                     elif state == "apice":
+                        self.container.configure(highlightbackground=theme["accent"], highlightthickness=1)
+                        self.f3_gear_box.config(bg=theme["panel"])
+                        self.l3_lbl_gear_title.config(text=f"CONTORNO ({target_gear}ª)", fg=theme["dim"], bg=theme["panel"])
+                        self.l3_lbl_gear_big.config(text=gear_str, fg="#38bdf8", bg=theme["panel"])
                         self.l3_badge_status.config(text="ÁPICE", bg="#075985", fg="#bae6fd")
                         self.l3_lbl_action.config(text="SOLTAR FREIO / VIRAR", fg="#38bdf8")
                         self.l3_lbl_tip.config(text="Mire a zebra interna e inicie a retomada suave")
                     else:
+                        self.container.configure(highlightbackground=theme["accent"], highlightthickness=1)
+                        self.f3_gear_box.config(bg=theme["panel"])
+                        self.l3_lbl_gear_title.config(text="MARCHA", fg=theme["dim"], bg=theme["panel"])
+                        self.l3_lbl_gear_big.config(text=gear_str, fg=theme["accent"], bg=theme["panel"])
                         self.l3_badge_status.config(text="SAÍDA", bg="#14532d", fg="#bbf7d0")
                         self.l3_lbl_action.config(text="TRACIONAR PROGRESSIVO", fg="#22c55e")
                         self.l3_lbl_tip.config(text=feedback if feedback else f"Abra o volante e aplique potência máxima na saída da {corner_num}")

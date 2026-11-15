@@ -36,6 +36,8 @@ class AsyncLapRecorder:
 
         self.best_lap_points: Optional[List[TelemetryPoint]] = None
         self.best_lap_time_ms: Optional[int] = None
+        self.best_lap_track_id: Optional[int] = None
+        self.recorded_laps_count: int = 0
 
         os.makedirs(self.output_dir, exist_ok=True)
         self.worker_thread = threading.Thread(target=self._process_queue, daemon=True)
@@ -54,7 +56,6 @@ class AsyncLapRecorder:
         if len(samples) < 30:
             return
 
-        # Clona as amostras para desvincular da thread de rede
         payload = {
             "samples": list(samples),
             "lap_number": lap_number,
@@ -88,6 +89,11 @@ class AsyncLapRecorder:
         track_id: int = item["track_id"]
         track_name: str = item["track_name"]
 
+        if self.best_lap_track_id is not None and self.best_lap_track_id != track_id:
+            self.best_lap_points = None
+            self.best_lap_time_ms = None
+        self.best_lap_track_id = track_id
+
         track_slug = "".join(c if c.isalnum() else "_" for c in track_name.lower()).strip("_") or "circuito"
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         valid_tag = "valida" if is_valid else "invalida"
@@ -99,6 +105,8 @@ class AsyncLapRecorder:
             writer = csv.DictWriter(csvfile, fieldnames=CSV_COLUMNS)
             writer.writeheader()
             writer.writerows(samples)
+
+        self.recorded_laps_count += 1
 
         # 2. Converte para TelemetryPoint para análise
         points = [
@@ -119,24 +127,34 @@ class AsyncLapRecorder:
             for s in samples
         ]
 
-        analyzer = LapAnalyzer(track_id=track_id)
-        quick_tip = analyzer.generate_quick_tip(points, self.best_lap_points)
+        # Guarda a referência anterior ANTES de atualizar o novo PB (evita auto-comparação Delta +0.000s)
+        prev_best_points = self.best_lap_points
+        prev_best_time_ms = self.best_lap_time_ms
 
-        # Atualiza PB da sessão se for volta válida e mais rápida
+        analyzer = LapAnalyzer(track_id=track_id)
+        quick_tip = analyzer.generate_quick_tip(points, prev_best_points)
+
         if is_valid and lap_time_ms > 0:
             if self.best_lap_time_ms is None or lap_time_ms < self.best_lap_time_ms:
                 self.best_lap_time_ms = lap_time_ms
                 self.best_lap_points = points
                 if self.state:
                     self.state.best_session_lap_ms = lap_time_ms
-                quick_tip = f"⭐ NOVO RECORDE DA SESSÃO! {self._format_ms(lap_time_ms)}"
+                if prev_best_time_ms is not None:
+                    improvement_s = (prev_best_time_ms - lap_time_ms) / 1000.0
+                    quick_tip = f"⭐ NOVO RECORDE DA SESSÃO! {self._format_ms(lap_time_ms)} (-{improvement_s:.3f}s)"
+                else:
+                    quick_tip = f"⭐ NOVO RECORDE DA SESSÃO! {self._format_ms(lap_time_ms)}"
 
-        # Envia feedback para o HUD
         if self.state:
             self.state.set_lap_feedback(f"V{lap_number}: {quick_tip}")
 
-        # Salva relatório em arquivo TXT se houver voltas analisáveis
-        report_txt = analyzer.compare_laps(points, self.best_lap_points)
+        report_txt = analyzer.compare_laps(
+            user_points=points,
+            ref_points=prev_best_points,
+            user_lap_time_ms=lap_time_ms,
+            ref_lap_time_ms=prev_best_time_ms,
+        )
         report_filename = f"relatorio_volta_{lap_number:02d}_{track_slug}_{timestamp}.txt"
         report_path = os.path.join(self.output_dir, report_filename)
         with open(report_path, "w", encoding="utf-8") as rf:
