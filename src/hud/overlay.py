@@ -680,7 +680,7 @@ class F1HudOverlay:
                 elif state == "preparo":
                     self.l2_lbl_action.config(text=f"PREPARAR FREADA ({dist_str})", fg="#f59e0b")
                     bar_color = "#f59e0b"
-                    pct = max(0.0, min(1.0, 1.0 - (dist_to_brake / 70.0)))
+                    pct = max(0.0, min(1.0, 1.0 - (dist_to_brake / 130.0)))
                 elif "freia" in state:
                     self.l2_lbl_action.config(text=f"100% FREIO! ({target_gear}ª M)", fg="#ef4444")
                     bar_color = "#ef4444"

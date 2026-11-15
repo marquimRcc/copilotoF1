@@ -122,22 +122,24 @@ THEMES: Dict[str, Dict] = {
 class CornerStateMachine:
     """Máquina de estados cinemática de frenagem e contorno com aritmética modular."""
 
-    # Desaceleração prática média combinada aerodinâmica + mecânica em F1 (~2.8G a 3.2G = 28 m/s²)
-    DECEL_BRAKE_MS2 = 28.0
+    # Desaceleração de alta confiança com margem para aderência e setup (~2.4G a 2.6G = 24 m/s²)
+    DECEL_BRAKE_MS2 = 24.0
+    # Janela de alerta amarelo / preparação antes do ponto de frenagem (130 metros de antecedência)
+    PREPARATION_WINDOW_M = 130.0
 
     @classmethod
     def calculate_braking_distance(cls, current_speed_kmh: int, target_speed_kmh: int) -> float:
-        """Calcula a distância ideal e segura de frenagem: d = (v² - v_apex²) / (2*a) + margem de reação humana."""
+        """Calcula a distância ideal e segura de frenagem: d = (v² - v_apex²) / (2*a) + margem antecipada."""
         v1 = max(0.0, current_speed_kmh / 3.6)
         v2 = max(0.0, target_speed_kmh / 3.6)
         if v1 <= v2:
             return 25.0
         # Distância física pura de desaceleração
         phys_dist = (v1**2 - v2**2) / (2.0 * cls.DECEL_BRAKE_MS2)
-        # Margem de reação humana (~0.25s) e segurança de posicionamento
-        reaction_margin = (v1 * 0.25) + 10.0
+        # Margem de antecipação humana (~0.35s) e margem de segurança de alinhamento (+20m)
+        reaction_margin = (v1 * 0.35) + 20.0
         total_dist = phys_dist + reaction_margin
-        return max(30.0, min(total_dist, 250.0))
+        return max(35.0, min(total_dist, 260.0))
 
     @classmethod
     def estimate_apex_speed(cls, corner: CornerZone) -> int:
@@ -230,8 +232,8 @@ class CornerStateMachine:
         if min_forward_apex <= (brake_dist + 5.0):
             return "freia", closest_corner, 0.0, min_forward_apex
 
-        # Zona de Preparação / Alerta Amarelo com antecedência confortável (até 70m antes da freada)
-        if dist_to_brake <= 70.0:
+        # Zona de Preparação / Alerta Amarelo com ampla antecedência (até 130m antes da freada)
+        if dist_to_brake <= cls.PREPARATION_WINDOW_M:
             return "preparo", closest_corner, dist_to_brake, min_forward_apex
 
         # Reta plena
