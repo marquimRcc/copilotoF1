@@ -171,19 +171,14 @@ class CornerStateMachine:
         track_len = max(1000.0, float(circuit.length))
         first_corner = circuit.corners[0]
 
-        # 0. Trava de Volta de Lançamento / Out-Lap / Grid Parado / Boxes
-        # Só ativa se o cronômetro estiver zerado (current_lap_time_ms == 0) E
-        # o status for de out-lap/garagem/boxes, carro parado no grid ou antes da linha
-        is_out_lap = (
-            current_lap_time_ms == 0
-            and (
-                driver_status in (0, 2, 3)
-                or lap_distance < 0.0
-                or speed_kmh == 0
-            )
-        )
-        if is_out_lap:
-            dist_to_start_line = abs(lap_distance) if lap_distance < 0.0 else max(0.0, track_len - lap_distance)
+        # 0. Trava de Volta de Lançamento / Out-Lap / Grid Parado / Boxes / Reiniciar Volta
+        # Se o cronômetro da volta estiver zerado (current_lap_time_ms == 0), a volta cronometrada
+        # ainda NÃO começou. O carro está em volta de lançamento, saída de boxes, grid ou abrindo volta.
+        if current_lap_time_ms == 0:
+            if lap_distance < 0.0:
+                dist_to_start_line = abs(lap_distance)
+            else:
+                dist_to_start_line = (track_len - (lap_distance % track_len)) % track_len
             dist_to_apex = dist_to_start_line + first_corner.apex_distance
             return "lancamento", first_corner, dist_to_start_line, dist_to_apex
 
@@ -438,12 +433,14 @@ class TelemetryState:
     def update_lap_data(self, lap_dist: float, total_dist: float, lap_num: int, lap_time_ms: int, last_time_ms: int, is_valid: bool, driver_status: int = 1):
         with self._lock:
             # Detecta teletransporte / reiniciar volta / flashback / reset
-            # (salto abrupto de mais de 50 metros que não seja a passagem natural pelo marco zero)
+            # (salto abrupto de mais de 50 metros que não seja a passagem natural pelo marco zero,
+            # ou transição do cronômetro para zero ao reiniciar a volta)
             track_len = float(self.circuit.length) if (self.circuit and self.circuit.length) else 4300.0
             dist_delta = lap_dist - self.lap_distance
             is_finish_line_cross = (self.lap_distance > (track_len - 120.0) and lap_dist < 120.0)
-            if self.lap_distance > 0 and abs(dist_delta) > 50.0 and not is_finish_line_cross:
-                self.current_state = "reta"
+            is_restart = (self.lap_time_ms > 0 and lap_time_ms == 0) or (self.lap_distance > 0 and abs(dist_delta) > 50.0 and not is_finish_line_cross)
+            if is_restart:
+                self.current_state = "lancamento" if lap_time_ms == 0 else "reta"
 
             self.lap_distance = lap_dist
             self.total_distance = total_dist

@@ -167,8 +167,8 @@ class F1HudOverlay:
 
     def _update_corner_logic(self):
         """Atualiza a máquina de estados (compatibilidade e testes)."""
-        # Se o carro está em movimento (speed > 0), aplica a cinemática modular adaptativa
-        if self.state.speed > 0:
+        # Se o cronômetro está zerado (volta de lançamento / reinício) ou o carro está em movimento
+        if self.state.lap_time_ms == 0 or self.state.speed > 0:
             st, corner, d_brake, d_apex = CornerStateMachine.update(
                 self.state.lap_distance, self.state.speed, self.state.circuit, self.state.lap_time_ms, self.state.driver_status, previous_state=self.state.current_state
             )
@@ -178,29 +178,7 @@ class F1HudOverlay:
             self.state.dist_to_apex = d_apex
             return
 
-        # Trava de Volta de Lançamento / Aquecimento (Out-Lap / Grid / Garagem)
-        # Só ativa se o cronômetro estiver em zero (lap_time_ms == 0) e velocidade zero
-        circuit_len = float(self.state.circuit.length) if (self.state.circuit and self.state.circuit.length) else 4300.0
-        if self.state.lap_time_ms == 0 and (
-            self.state.lap_distance < 0.0
-            or self.state.driver_status in (0, 3)
-            or self.state.lap_distance > (circuit_len - 1600.0)
-            or self.state.lap_distance < 15.0
-        ):
-            c0 = self.state.circuit.corners[0] if (self.state.circuit and self.state.circuit.corners) else None
-            if self.state.lap_distance < 0.0:
-                d = abs(self.state.lap_distance)
-            elif self.state.lap_distance > 500.0:
-                d = max(0.0, circuit_len - self.state.lap_distance)
-            else:
-                d = max(0.0, -self.state.lap_distance)
-            self.state.current_state = "lancamento"
-            self.state.next_corner = c0
-            self.state.dist_to_brake = d
-            self.state.dist_to_apex = d + (c0.apex_distance if c0 else 100.0)
-            return
-
-        # Fallback estático para testes unitários com speed == 0
+        # Fallback estático para testes unitários com speed == 0 e lap_time_ms > 0
         if not self.state.circuit or not self.state.circuit.corners:
             self.state.current_state = "reta"
             return
@@ -659,7 +637,8 @@ class F1HudOverlay:
                     self.f1_center.configure(bg=color_cfg["bg"])
                     self.f1_bottom.configure(bg=color_cfg["bg"])
 
-                    self.l1_lbl_track.config(text=f"{snap['track_name'].upper()} • {corner_num}", fg=color_cfg["top"], bg=color_cfg["bg"])
+                    track_banner = f"{snap['track_name'].upper()} • ABRINDO VOLTA" if state == "lancamento" else f"{snap['track_name'].upper()} • {corner_num}"
+                    self.l1_lbl_track.config(text=track_banner, fg=color_cfg["top"], bg=color_cfg["bg"])
                     self.l1_lbl_best.config(text=best_str, fg="#facc15", bg=color_cfg["bg"])
                     self.l1_lbl_dist.config(text=dist_str if not is_flat else "--", fg=color_cfg["top"], bg=color_cfg["bg"])
                     self.l1_lbl_speed.config(text=f"{speed} km/h", fg=color_cfg["top"], bg=color_cfg["bg"])
@@ -676,7 +655,7 @@ class F1HudOverlay:
                             "freia_pulse": ("FREIA AGORA!", f"REDUZIR P/ {target_gear}ª MARCHA"),
                             "apice": ("ÁPICE / CONTORNO", "SOLTAR FREIO / VIRAR"),
                             "acelera": ("ACELERAÇÃO!", "TRACIONAR NA SAÍDA"),
-                            "lancamento": ("VOLTA DE LANÇAMENTO", f"LARGADA EM {dist_str}"),
+                            "lancamento": ("ABRINDO VOLTA", f"PÉ EMBAIXO • LARGADA EM {dist_str}"),
                         }
                         main_txt, sub_txt = state_labels.get(state, ("RETA", ""))
 
@@ -716,9 +695,10 @@ class F1HudOverlay:
                         self.f2_leds[i].configure(bg=col)
 
                     if state == "lancamento":
-                        self.l2_lbl_corner.config(text="VOLTA DE LANÇAMENTO")
+                        self.l2_lbl_corner.config(text=f"{snap['track_name'].upper()} • ABRINDO VOLTA")
                         self.l2_lbl_dist.config(text=dist_str)
-                        self.l2_lbl_action.config(text=f"LARGADA EM {dist_str}", fg="#f59e0b")
+                        self.l2_lbl_action.config(text=f"PÉ EMBAIXO / LARGADA EM {dist_str}", fg="#f59e0b")
+                        self.l2_lbl_apex_target.config(text=f"ALVO: {corner_num} ({corner_name})")
                         bar_color = "#f59e0b"
                         pct = max(0.0, min(1.0, 1.0 - (dist_to_brake / 500.0)))
                     elif is_flat and state in ("reta", "apice", "acelera"):
@@ -759,7 +739,8 @@ class F1HudOverlay:
 
                 if self._last_rendered.get("l3") != l3_key:
                     self._last_rendered["l3"] = l3_key
-                    self.l3_lbl_track.config(text=f"{snap['track_name'].upper()} • {corner_num}")
+                    track_banner_3 = f"{snap['track_name'].upper()} • ABRINDO VOLTA" if state == "lancamento" else f"{snap['track_name'].upper()} • {corner_num}"
+                    self.l3_lbl_track.config(text=track_banner_3)
                     self.l3_lbl_best.config(text=best_str, fg="#facc15", bg=theme["bg"])
 
                     if state == "lancamento":
@@ -767,9 +748,9 @@ class F1HudOverlay:
                         self.f3_gear_box.config(bg=theme["panel"])
                         self.l3_lbl_gear_title.config(text="MARCHA", fg=theme["dim"], bg=theme["panel"])
                         self.l3_lbl_gear_big.config(text=gear_str, fg=theme["accent"], bg=theme["panel"])
-                        self.l3_badge_status.config(text="LANÇAMENTO", bg="#78350f", fg="#fef08a")
+                        self.l3_badge_status.config(text="ABRINDO VOLTA", bg="#78350f", fg="#fef08a")
                         self.l3_lbl_action.config(text=f"LARGADA EM {dist_str}", fg="#f59e0b")
-                        self.l3_lbl_tip.config(text="Volta de lançamento: aqueça pneus e abra traçado na reta")
+                        self.l3_lbl_tip.config(text=f"Aceleração plena na reta dos boxes • Foco na entrada de {corner_num} ({corner_name})")
                     elif is_flat and state in ("reta", "apice", "acelera"):
                         self.container.configure(highlightbackground=theme["accent"], highlightthickness=1)
                         self.f3_gear_box.config(bg=theme["panel"])

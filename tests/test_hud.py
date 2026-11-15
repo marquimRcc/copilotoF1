@@ -119,6 +119,50 @@ class TestHudStateMachine(unittest.TestCase):
         self.hud._update_corner_logic()
         self.assertEqual(self.hud.current_state, "acelera", "Na saída da curva deve comandar aceleração progressiva!")
 
+    def test_restart_lap_high_speed_recovery_interlagos(self):
+        """Valida a recuperação instantânea ao reiniciar a volta a alta velocidade no F1 25."""
+        interlagos = get_circuit_by_track_id(16)
+        self.hud.state.circuit = interlagos
+
+        # 1. Carro estava no meio da volta cronometrada na Curva 4
+        self.hud.state.update_telemetry(speed=185, throttle=0.9, brake=0.0, steer=0.0, gear=4, rpm=11000, drs=0)
+        self.hud.state.update_lap_data(lap_dist=1478.9, total_dist=4000.0, lap_num=2, lap_time_ms=23228, last_time_ms=0, is_valid=True, driver_status=1)
+        self.hud._update_corner_logic()
+
+        # 2. Jogador aperta 'Reiniciar Volta' no jogo (spawna a 2833.4m a 124 km/h com tempo=0)
+        self.hud.state.update_telemetry(speed=124, throttle=0.1, brake=0.0, steer=0.0, gear=3, rpm=8500, drs=0)
+        self.hud.state.update_lap_data(lap_dist=2833.4, total_dist=4000.0, lap_num=2, lap_time_ms=0, last_time_ms=0, is_valid=True, driver_status=1)
+        self.hud._update_corner_logic()
+
+        self.assertEqual(self.hud.current_state, "lancamento", "Ao reiniciar a volta com tempo=0, DEVE entrar em lancamento!")
+        self.assertAlmostEqual(self.hud.dist_to_brake, 4309.0 - 2833.4, delta=0.5)
+        self.assertEqual(self.hud.next_corner.name, "S do Senna")
+
+        # 3. Subindo a reta dos boxes em aceleração plena a 265 km/h com tempo=0
+        self.hud.state.update_telemetry(speed=265, throttle=1.0, brake=0.0, steer=0.0, gear=7, rpm=11500, drs=0)
+        self.hud.state.update_lap_data(lap_dist=3800.0, total_dist=5000.0, lap_num=2, lap_time_ms=0, last_time_ms=0, is_valid=True, driver_status=1)
+        self.hud._update_corner_logic()
+
+        self.assertEqual(self.hud.current_state, "lancamento")
+        self.assertAlmostEqual(self.hud.dist_to_brake, 509.0, delta=0.5)
+        self.assertEqual(self.hud.next_corner.name, "S do Senna")
+
+        # 4. Cruza a linha de chegada no metro zero (lap_time_ms > 0)
+        self.hud.state.update_telemetry(speed=305, throttle=1.0, brake=0.0, steer=0.0, gear=8, rpm=12000, drs=0)
+        self.hud.state.update_lap_data(lap_dist=10.0, total_dist=5300.0, lap_num=3, lap_time_ms=100, last_time_ms=75000, is_valid=True, driver_status=1)
+        self.hud._update_corner_logic()
+
+        self.assertEqual(self.hud.current_state, "reta")
+        self.assertEqual(self.hud.next_corner.name, "S do Senna")
+        self.assertTrue(self.hud.dist_to_brake > 150.0)
+
+        # 5. Ponto de freada do S do Senna
+        self.hud.state.update_telemetry(speed=310, throttle=0.0, brake=1.0, steer=0.0, gear=8, rpm=12100, drs=0)
+        self.hud.state.update_lap_data(lap_dist=240.0, total_dist=5530.0, lap_num=3, lap_time_ms=2800, last_time_ms=75000, is_valid=True, driver_status=1)
+        self.hud._update_corner_logic()
+
+        self.assertEqual(self.hud.current_state, "freia", "No ponto de freada a 240m deve comandar freio imediato!")
+
 
 
     def test_theme_and_layout_switching(self):
